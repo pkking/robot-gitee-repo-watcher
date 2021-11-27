@@ -137,7 +137,7 @@ func run(bot *robot) {
 		}
 	}(ctx)
 
-	log := logrus.NewEntry(logrus.New())
+	log := logrus.NewEntry(logrus.StandardLogger())
 
 	if err := bot.run(ctx, log); err != nil {
 		log.Errorf("start watching, err:%s", err.Error())

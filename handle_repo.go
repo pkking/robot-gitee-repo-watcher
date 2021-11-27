@@ -54,7 +54,9 @@ func (bot *robot) createRepo(
 		log.Errorf("initialize the reviewers, err:%s", err.Error())
 	}
 
-	branches := []community.RepoBranch{}
+	branches := []community.RepoBranch{
+		{Name: "master"},
+	}
 	for _, item := range repo.Branches {
 		if item.Name == "master" {
 			continue

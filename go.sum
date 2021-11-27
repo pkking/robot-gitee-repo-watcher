@@ -165,8 +165,8 @@ github.com/onsi/ginkgo v1.14.0/go.mod h1:iSB4RoI2tjJc9BBv4NKIKWKya62Rps+oPG/Lv9k
 github.com/onsi/gomega v0.0.0-20170829124025-dcabb60a477c/go.mod h1:C1qb7wdrVGGVU+Z6iS04AVkA3Q65CEZX59MT0QO5uiA=
 github.com/onsi/gomega v1.7.1/go.mod h1:XdKZgCCFLUoM/7CFJVPcG8C1xQ1AJ0vpAezJrB7JYyY=
 github.com/onsi/gomega v1.10.1/go.mod h1:iN09h71vgCQne3DLsj+A5owkum+a2tYe+TOCB1ybHNo=
-github.com/opensourceways/community-robot-lib v0.0.0-20211127081636-da1fb7c2ed84 h1:qMbs5CbzEUQ/qWbCYN3e5tDmwhA53s2DpE5C8o5VpiY=
-github.com/opensourceways/community-robot-lib v0.0.0-20211127081636-da1fb7c2ed84/go.mod h1:+VBJWTddSHGaGqm7weRGVnd9botdes8aDk3avOcI9D0=
+github.com/opensourceways/community-robot-lib v0.0.0-20211127100111-9925e60f0b14 h1:pA+E6UL0cwK01d73WYq8cSgkVxUo2LCPVpzzBP8KdNw=
+github.com/opensourceways/community-robot-lib v0.0.0-20211127100111-9925e60f0b14/go.mod h1:+VBJWTddSHGaGqm7weRGVnd9botdes8aDk3avOcI9D0=
 github.com/panjf2000/ants/v2 v2.4.6 h1:drmj9mcygn2gawZ155dRbo+NfXEfAssjZNU1qoIb4gQ=
 github.com/panjf2000/ants/v2 v2.4.6/go.mod h1:f6F0NZVFsGCp5A7QW/Zj/m92atWwOkY0OIhFxRNFr4A=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -17,7 +18,7 @@ func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string,
 			log.Errorf("handle repo members and get repo:%s, err:%s", repo, err.Error())
 			return nil
 		}
-		localMembers = v.Members
+		localMembers = toLowerOfMembers(v.Members)
 	}
 
 	expect := sets.NewString(expectRepo.expectOwners...)
@@ -59,4 +60,12 @@ func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string,
 // Gitee api will be successful even if adding a member repeatedly.
 func (bot *robot) addRepoMember(org, repo, login string) error {
 	return bot.cli.AddRepoMember(org, repo, login, "push")
+}
+
+func toLowerOfMembers(m []string) []string {
+	v := make([]string, len(m))
+	for i := range m {
+		v[i] = strings.ToLower(m[i])
+	}
+	return v
 }

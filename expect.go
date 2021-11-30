@@ -6,6 +6,7 @@ import (
 	"path"
 
 	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/yaml"
 
 	"github.com/opensourceways/robot-gitee-repo-watcher/community"
@@ -156,6 +157,7 @@ func (e *expectState) check(
 		return ok
 	})
 
+	done := sets.NewString()
 	allSigs := e.sig.refresh(getSHA)
 	sigs := allSigs.GetSigs()
 	for i := range sigs {
@@ -164,14 +166,14 @@ func (e *expectState) check(
 		sigOwner := e.getSigOwner(sig.Name)
 		owners := sigOwner.refresh(getSHA)
 
-		for _, repoName := range sig.Repositories {
+		for _, repoName := range sig.GetRepos() {
 			if isStopped() {
 				break
 			}
 
 			checkRepo(repoMap[repoName], owners.GetOwners(), e.log)
 
-			delete(repoMap, repoName)
+			done.Insert(repoName)
 		}
 
 		if isStopped() {
@@ -179,12 +181,18 @@ func (e *expectState) check(
 		}
 	}
 
-	for _, repo := range repoMap {
+	if len(repoMap) == done.Len() {
+		return
+	}
+
+	for k, repo := range repoMap {
 		if isStopped() {
 			break
 		}
 
-		checkRepo(repo, nil, e.log)
+		if !done.Has(k) {
+			checkRepo(repo, nil, e.log)
+		}
 	}
 }
 

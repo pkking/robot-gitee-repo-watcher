@@ -98,6 +98,8 @@ func (bot *robot) checkOnce(ctx context.Context, org string, local *localState, 
 		return isCancelled(ctx)
 	}
 
+	expect.log.Info("new check")
+
 	expect.check(isStopped, local.clear, f)
 }
 

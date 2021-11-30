@@ -37,6 +37,8 @@ func (bot *robot) createRepo(
 		Private:     repo.IsPrivate(),
 	})
 	if err != nil {
+		log.Warning("repo exists already")
+
 		if s, b := bot.getRepoState(org, repoName, log); b {
 			return s
 		}
@@ -136,7 +138,7 @@ func (bot *robot) getRepoState(org, repo string, log *logrus.Entry) (models.Repo
 
 	r := models.RepoState{
 		Available: true,
-		Members:   newRepo.Members,
+		Members:   toLowerOfMembers(newRepo.Members),
 		Property: models.RepoProperty{
 			Private:    newRepo.Private,
 			CanComment: newRepo.CanComment,

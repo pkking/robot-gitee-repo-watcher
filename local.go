@@ -41,7 +41,7 @@ func (bot *robot) loadALLRepos(org string) (*localState, error) {
 		item := &items[i]
 		r.repos[item.Path] = models.NewRepo(item.Path, models.RepoState{
 			Available: true,
-			Members:   item.Members,
+			Members:   toLowerOfMembers(item.Members),
 			Property: models.RepoProperty{
 				Private:    item.Private,
 				CanComment: item.CanComment,

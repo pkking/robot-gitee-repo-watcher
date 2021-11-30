@@ -37,7 +37,7 @@ func (r *Repos) Validate() error {
 
 	for i := range r.Repositories {
 		if err := r.Repositories[i].validate(); err != nil {
-			return err
+			return fmt.Errorf("validate %d repository, err:%s", i, err.Error())
 		}
 	}
 
@@ -84,7 +84,7 @@ func (r *Repository) validate() error {
 
 	for i := range r.Branches {
 		if err := r.Branches[i].validate(); err != nil {
-			return err
+			return fmt.Errorf("validate %d branch, err:%s", i, err)
 		}
 	}
 
@@ -143,7 +143,7 @@ func (s *Sigs) Validate() error {
 
 	for i := range s.Items {
 		if err := s.Items[i].validate(); err != nil {
-			return err
+			return fmt.Errorf("validate %d sig, err:%s", i, err)
 		}
 	}
 

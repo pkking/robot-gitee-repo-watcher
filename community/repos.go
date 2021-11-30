@@ -75,11 +75,11 @@ func (r *Repository) IsPrivate() bool {
 
 func (r *Repository) validate() error {
 	if r.Name == "" {
-		return fmt.Errorf("missing name")
+		return fmt.Errorf("missing repo name")
 	}
 
 	if r.Type == "" {
-		return fmt.Errorf("missing type")
+		return fmt.Errorf("missing repo type")
 	}
 
 	for i := range r.Branches {
@@ -119,7 +119,7 @@ type RepoBranch struct {
 
 func (r *RepoBranch) validate() error {
 	if r.Name == "" {
-		return fmt.Errorf("missing name")
+		return fmt.Errorf("missing branch name")
 	}
 	return nil
 }
@@ -166,7 +166,7 @@ func (s *Sig) GetRepos() []string {
 
 func (s *Sig) validate() error {
 	if s.Name == "" {
-		return fmt.Errorf("missing name")
+		return fmt.Errorf("missing sig name")
 	}
 
 	s.convert()

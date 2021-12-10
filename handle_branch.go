@@ -73,7 +73,7 @@ func (bot *robot) createBranch(
 	ref := branch.CreateFrom
 	if ref == "" {
 		// ref must be passed according to the gitee api and the default value is "master"
-		ref = "master"
+		ref = community.BranchMaster
 	}
 
 	log = log.WithField("create branch", fmt.Sprintf("%s/%s", repo, branch.Name))

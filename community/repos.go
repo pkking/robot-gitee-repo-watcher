@@ -3,9 +3,14 @@ package community
 import (
 	"fmt"
 	"strings"
+
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
-const BranchProtected = "protected"
+const (
+	BranchMaster    = "master"
+	BranchProtected = "protected"
+)
 
 type Repos struct {
 	Version      string       `json:"version,omitempty"`
@@ -35,10 +40,19 @@ func (r *Repos) Validate() error {
 		return fmt.Errorf("empty repos")
 	}
 
+	s := sets.NewString()
 	for i := range r.Repositories {
-		if err := r.Repositories[i].validate(); err != nil {
+		item := &r.Repositories[i]
+
+		if err := item.validate(); err != nil {
 			return fmt.Errorf("validate %d repository, err:%s", i, err.Error())
 		}
+
+		n := item.Name
+		if s.Has(n) {
+			return fmt.Errorf("validate %d repository, err:duplicate repo:%s", i, n)
+		}
+		s.Insert(n)
 	}
 
 	r.convert()

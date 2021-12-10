@@ -167,15 +167,16 @@ func (s *Sigs) Validate() error {
 type Sig struct {
 	Name         string   `json:"name" required:"true"`
 	Repositories []string `json:"repositories,omitempty"`
-	repos        []string `json:"-"`
+
+	repos map[string][]string `json:"-"`
 }
 
-func (s *Sig) GetRepos() []string {
-	if s == nil {
+func (s *Sig) GetRepos(org string) []string {
+	if s == nil || s.repos == nil {
 		return nil
 	}
 
-	return s.repos
+	return s.repos[org]
 }
 
 func (s *Sig) validate() error {
@@ -188,23 +189,26 @@ func (s *Sig) validate() error {
 }
 
 func (s *Sig) convert() {
-	v := make([]string, len(s.Repositories))
-
-	for i, r := range s.Repositories {
-		if a := strings.Split(r, "/"); len(a) > 1 {
-			v[i] = a[1]
+	v := make(map[string][]string)
+	f := func(org, repo string) {
+		if r, ok := v[org]; ok {
+			v[org] = append(r, repo)
 		} else {
-			v[i] = r
+			v[org] = []string{repo}
 		}
-
 	}
+
+	for _, r := range s.Repositories {
+		if a := strings.Split(r, "/"); len(a) > 1 {
+			f(a[0], a[1])
+		}
+	}
+
 	s.repos = v
 }
 
 type RepoOwners struct {
 	Maintainers []string `json:"maintainers,omitempty"`
-	Committers  []string `json:"committers,omitempty"`
-	all         []string `json:"-"`
 }
 
 func (r *RepoOwners) GetOwners() []string {
@@ -212,7 +216,7 @@ func (r *RepoOwners) GetOwners() []string {
 		return nil
 	}
 
-	return r.all
+	return r.Maintainers
 }
 
 func (r *RepoOwners) Validate() error {
@@ -220,24 +224,5 @@ func (r *RepoOwners) Validate() error {
 		return fmt.Errorf("empty repo owners")
 	}
 
-	r.convert()
-
 	return nil
-}
-
-func (r *RepoOwners) convert() {
-	o := make([]string, len(r.Maintainers)+len(r.Committers))
-	i := 0
-
-	for _, item := range r.Maintainers {
-		o[i] = strings.ToLower(item)
-		i++
-	}
-
-	for _, item := range r.Committers {
-		o[i] = strings.ToLower(item)
-		i++
-	}
-
-	r.all = o
 }

@@ -157,6 +157,7 @@ func (e *expectState) check(
 		return ok
 	})
 
+	org := e.w.Org
 	done := sets.NewString()
 	allSigs := e.sig.refresh(getSHA)
 	sigs := allSigs.GetSigs()
@@ -166,7 +167,7 @@ func (e *expectState) check(
 		sigOwner := e.getSigOwner(sig.Name)
 		owners := sigOwner.refresh(getSHA)
 
-		for _, repoName := range sig.GetRepos() {
+		for _, repoName := range sig.GetRepos(org) {
 			if isStopped() {
 				break
 			}

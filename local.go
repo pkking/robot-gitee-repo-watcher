@@ -46,6 +46,7 @@ func (bot *robot) loadALLRepos(org string) (*localState, error) {
 				Private:    item.Private,
 				CanComment: item.CanComment,
 			},
+			Owner: item.Owner.Login,
 		})
 	}
 

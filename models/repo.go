@@ -13,6 +13,7 @@ type RepoState struct {
 	Available bool
 	Branches  []community.RepoBranch
 	Members   []string
+	Owner     string
 	Property  RepoProperty
 }
 

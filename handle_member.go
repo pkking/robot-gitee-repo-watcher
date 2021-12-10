@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
-func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string, log *logrus.Entry) []string {
+func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string, repoOwner *string, log *logrus.Entry) []string {
 	org := expectRepo.org
 	repo := expectRepo.getNewRepoName()
 
@@ -19,6 +19,7 @@ func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string,
 			return nil
 		}
 		localMembers = toLowerOfMembers(v.Members)
+		*repoOwner = v.Owner.Login
 	}
 
 	expect := sets.NewString(expectRepo.expectOwners...)
@@ -42,7 +43,14 @@ func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string,
 
 	// remove
 	if v := lm.Difference(expect); v.Len() > 0 {
+		o := *repoOwner
+
 		for k := range v {
+			if k == o {
+				// Gitee does not allow to remove the repo owner.
+				continue
+			}
+
 			l := log.WithField("remove member", fmt.Sprintf("%s:%s", repo, k))
 			l.Info("start")
 

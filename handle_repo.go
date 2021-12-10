@@ -33,7 +33,7 @@ func (bot *robot) createRepo(
 
 		if s, b := bot.getRepoState(org, repoName, log); b {
 			s.Branches = bot.handleBranch(expectRepo, s.Branches, log)
-			s.Members = bot.handleMember(expectRepo, s.Members, log)
+			s.Members = bot.handleMember(expectRepo, s.Members, &s.Owner, log)
 			return s
 		}
 
@@ -156,7 +156,7 @@ func (bot *robot) renameRepo(
 	// avoid the case that the repo already exists.
 	if s, b := bot.getRepoState(org, newRepo, log); b {
 		s.Branches = bot.handleBranch(expectRepo, s.Branches, log)
-		s.Members = bot.handleMember(expectRepo, s.Members, log)
+		s.Members = bot.handleMember(expectRepo, s.Members, &s.Owner, log)
 		return s
 	}
 
@@ -184,6 +184,7 @@ func (bot *robot) getRepoState(org, repo string, log *logrus.Entry) (models.Repo
 			Private:    newRepo.Private,
 			CanComment: newRepo.CanComment,
 		},
+		Owner: newRepo.Owner.Login,
 	}
 
 	branches, err := bot.listAllBranchOfRepo(org, repo)

@@ -209,6 +209,7 @@ func (s *Sig) convert() {
 
 type RepoOwners struct {
 	Maintainers []string `json:"maintainers,omitempty"`
+	all         []string `json:"-"`
 }
 
 func (r *RepoOwners) GetOwners() []string {
@@ -216,7 +217,7 @@ func (r *RepoOwners) GetOwners() []string {
 		return nil
 	}
 
-	return r.Maintainers
+	return r.all
 }
 
 func (r *RepoOwners) Validate() error {
@@ -224,5 +225,17 @@ func (r *RepoOwners) Validate() error {
 		return fmt.Errorf("empty repo owners")
 	}
 
+	r.convert()
+
 	return nil
+}
+
+func (r *RepoOwners) convert() {
+	o := make([]string, len(r.Maintainers))
+
+	for i, item := range r.Maintainers {
+		o[i] = strings.ToLower(item)
+	}
+
+	r.all = o
 }

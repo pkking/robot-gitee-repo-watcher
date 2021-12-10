@@ -172,6 +172,10 @@ func (e *expectState) check(
 				break
 			}
 
+			if org == "openeuler" && repoName == "blog" {
+				continue
+			}
+
 			checkRepo(repoMap[repoName], owners.GetOwners(), e.log)
 
 			done.Insert(repoName)
@@ -192,6 +196,10 @@ func (e *expectState) check(
 		}
 
 		if !done.Has(k) {
+			if org == "openeuler" && k == "blog" {
+				continue
+			}
+
 			checkRepo(repo, nil, e.log)
 		}
 	}

@@ -100,7 +100,7 @@ func (bot *robot) checkOnce(ctx context.Context, org string, local *localState, 
 
 	expect.log.Info("new check")
 
-	expect.check(isStopped, local.clear, f)
+	expect.check(org, isStopped, local.clear, f)
 }
 
 func (bot *robot) execTask(localRepo *models.Repo, expectRepo expectRepoInfo, log *logrus.Entry) error {

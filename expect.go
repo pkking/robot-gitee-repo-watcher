@@ -128,6 +128,7 @@ func (e *expectState) init(repoFilePath, sigFilePath, sigDir string) (string, er
 }
 
 func (e *expectState) check(
+	org string,
 	isStopped func() bool,
 	clearLocal func(func(string) bool),
 	checkRepo func(*community.Repository, []string, *logrus.Entry),
@@ -157,7 +158,6 @@ func (e *expectState) check(
 		return ok
 	})
 
-	org := e.w.Org
 	done := sets.NewString()
 	allSigs := e.sig.refresh(getSHA)
 	sigs := allSigs.GetSigs()

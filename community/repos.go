@@ -43,11 +43,11 @@ func (r *Repos) Validate() error {
 	s := sets.NewString()
 	for i := range r.Repositories {
 		item := &r.Repositories[i]
-
+/*
 		if err := item.validate(); err != nil {
 			return fmt.Errorf("validate %d repository, err:%s", i, err.Error())
 		}
-
+*/
 		n := item.Name
 		if s.Has(n) {
 			return fmt.Errorf("validate %d repository, err:duplicate repo:%s", i, n)
@@ -81,6 +81,10 @@ type Repository struct {
 	Branches          []RepoBranch `json:"branches,omitempty"`
 
 	RepoMember
+}
+
+func (r *Repository) Validate() error {
+	return r.validate()
 }
 
 func (r *Repository) IsPrivate() bool {

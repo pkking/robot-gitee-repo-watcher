@@ -4,7 +4,9 @@ import (
 	"encoding/base64"
 	"fmt"
 	"path"
+	"strings"
 
+	sdk "gitee.com/openeuler/go-gitee/gitee"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/yaml"
@@ -57,27 +59,12 @@ type expectRepos struct {
 	wf watchingFile
 }
 
-func (e *expectRepos) refresh(f getSHAFunc) *community.Repos {
+func (e *expectRepos) refresh(f getSHAFunc) *community.Repository {
 	e.wf.update(f, func() watchingFileObject {
-		return new(community.Repos)
+		return new(community.Repository)
 	})
 
-	if v, ok := e.wf.obj.(*community.Repos); ok {
-		return v
-	}
-	return nil
-}
-
-type orgSigs struct {
-	wf watchingFile
-}
-
-func (s *orgSigs) refresh(f getSHAFunc) *community.Sigs {
-	s.wf.update(f, func() watchingFileObject {
-		return new(community.Sigs)
-	})
-
-	if v, ok := s.wf.obj.(*community.Sigs); ok {
+	if v, ok := e.wf.obj.(*community.Repository); ok {
 		return v
 	}
 	return nil
@@ -99,29 +86,48 @@ func (e *expectSigOwners) refresh(f getSHAFunc) *community.RepoOwners {
 }
 
 type expectState struct {
-	log *logrus.Entry
-	cli iClient
+	log    *logrus.Entry
+	cli    iClient
+	w      repoBranch
+	sigDir string
 
-	w         repoBranch
-	sig       orgSigs
-	repos     expectRepos
-	sigDir    string
+	tree      []sdk.TreeBasic
+	reposInfo *community.Repos
+	repos     map[string]*expectRepos
 	sigOwners map[string]*expectSigOwners
 }
 
-func (e *expectState) init(repoFilePath, sigFilePath, sigDir string) (string, error) {
-	e.repos = expectRepos{e.newWatchingFile(repoFilePath)}
+func (e *expectState) init(orgPath, sigFilePath, sigDir string) (string, error) {
+	trees, err := e.cli.GetDirectoryTree(e.w.Org, e.w.Repo, e.w.Branch, 1)
+	if err != nil || len(trees.Tree) == 0 {
+		return "", err
+	}
+	e.tree = trees.Tree
 
-	v := e.repos.refresh(func(string) string {
-		return "init"
-	})
+	reposInfo := new(community.Repos)
+	e.repos = make(map[string]*expectRepos)
+	for _, v := range e.tree {
+		patharr := strings.Split(v.Path, "/")
+		if patharr[0] != "sig" || len(patharr) != 5 || patharr[2] != orgPath {
+			continue
+		}
 
-	org := v.GetCommunity()
+		exRepo := &expectRepos{e.newWatchingFile(v.Path)}
+		e.repos[v.Path] = exRepo
+		singleRepo := exRepo.refresh(func(string) string {
+			return "init"
+		})
+		reposInfo.Repositories = append(reposInfo.Repositories, *singleRepo)
+
+	}
+	reposInfo.Validate()
+	e.reposInfo = reposInfo
+
+	org := orgPath
 	if org == "" {
 		return "", fmt.Errorf("load repository failed")
 	}
 
-	e.sig = orgSigs{e.newWatchingFile(sigFilePath)}
 	e.sigDir = sigDir
 
 	return org, nil
@@ -133,19 +139,64 @@ func (e *expectState) check(
 	clearLocal func(func(string) bool),
 	checkRepo func(*community.Repository, []string, *logrus.Entry),
 ) {
-	allFiles, err := e.listAllFilesOfRepo()
+	allFiles, err := e.listAllFilesOfRepo(org)
 	if err != nil {
 		e.log.Errorf("list all file, err:%s", err.Error())
 
 		allFiles = make(map[string]string)
 	}
-
 	getSHA := func(p string) string {
 		return allFiles[p]
 	}
 
-	allRepos := e.repos.refresh(getSHA)
-	repoMap := allRepos.GetRepos()
+	repoSigsInfo := make(map[string]string)
+
+	for i := range allFiles {
+		path := strings.Split(i, ".yaml")[0]
+		pathArr := strings.Split(path, "/")
+		repoName := pathArr[4]
+		repoSigsInfo[repoName] = pathArr[1]
+		hasSameRepo := false
+		for _, key := range e.reposInfo.Repositories {
+			if key.Name == repoName {
+				hasSameRepo = true
+				break
+			}
+		}
+		if hasSameRepo {
+			continue
+		}
+
+		expState := e.getRepoFile(i)
+		singleRepo := expState.refresh(getSHA)
+		e.reposInfo.Repositories = append(e.reposInfo.Repositories, *singleRepo)
+	}
+
+	localRepos := e.reposInfo.Repositories
+	for _, key := range localRepos {
+		hasSameRepo := false
+		for i := range allFiles {
+			path := strings.Split(i, ".yaml")[0]
+			repoName := strings.Split(path, "/")[4]
+			if key.Name == repoName {
+				hasSameRepo = true
+				break
+			}
+		}
+		if hasSameRepo {
+			continue
+		}
+		for i := 0; i < len(localRepos); {
+			if localRepos[i].Name == key.Name {
+				localRepos = append(localRepos[:i], localRepos[i+1:]...)
+			} else {
+				i++
+			}
+		}
+	}
+
+	e.reposInfo.Validate()
+	repoMap := e.reposInfo.GetRepos()
 
 	if len(repoMap) == 0 {
 		// keep safe to do this. it is impossible to happen generally.
@@ -159,31 +210,21 @@ func (e *expectState) check(
 	})
 
 	done := sets.NewString()
-	allSigs := e.sig.refresh(getSHA)
-	sigs := allSigs.GetSigs()
-	for i := range sigs {
-		sig := &sigs[i]
-
-		sigOwner := e.getSigOwner(sig.Name)
+	for repo := range repoSigsInfo {
+		sigOwner := e.getSigOwner(repoSigsInfo[repo])
 		owners := sigOwner.refresh(getSHA)
-
-		for _, repoName := range sig.GetRepos(org) {
-			if isStopped() {
-				break
-			}
-
-			if org == "openeuler" && repoName == "blog" {
-				continue
-			}
-
-			checkRepo(repoMap[repoName], owners.GetOwners(), e.log)
-
-			done.Insert(repoName)
-		}
 
 		if isStopped() {
 			break
 		}
+
+		if org == "openeuler" && repo == "blog" {
+			continue
+		}
+
+		checkRepo(repoMap[repo], owners.GetOwners(), e.log)
+
+		done.Insert(repo)
 	}
 
 	if len(repoMap) == done.Len() {
@@ -220,6 +261,19 @@ func (e *expectState) getSigOwner(sigName string) *expectSigOwners {
 	return o
 }
 
+func (e *expectState) getRepoFile(repoPath string) *expectRepos {
+	o, ok := e.repos[repoPath]
+	if !ok {
+		o = &expectRepos{
+			wf: e.newWatchingFile(repoPath),
+		}
+
+		e.repos[repoPath] = o
+	}
+
+	return o
+}
+
 func (e *expectState) newWatchingFile(p string) watchingFile {
 	return watchingFile{
 		file:     p,
@@ -228,7 +282,7 @@ func (e *expectState) newWatchingFile(p string) watchingFile {
 	}
 }
 
-func (e *expectState) listAllFilesOfRepo() (map[string]string, error) {
+func (e *expectState) listAllFilesOfRepo(org string) (map[string]string, error) {
 	trees, err := e.cli.GetDirectoryTree(e.w.Org, e.w.Repo, e.w.Branch, 1)
 	if err != nil || len(trees.Tree) == 0 {
 		return nil, err
@@ -237,6 +291,10 @@ func (e *expectState) listAllFilesOfRepo() (map[string]string, error) {
 	r := make(map[string]string)
 	for i := range trees.Tree {
 		item := &trees.Tree[i]
+		patharr := strings.Split(item.Path, "/")
+		if patharr[0] != "sig" || len(patharr) != 5 || patharr[2] != org {
+			continue
+		}
 		r[item.Path] = item.Sha
 	}
 

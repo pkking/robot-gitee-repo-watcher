@@ -29,7 +29,7 @@ func (bot *robot) createOBSMetaProject(repo string, log *logrus.Entry) {
 	w := &bot.cfg.WatchingFiles
 	msg := fmt.Sprintf(
 		"add project according to the file: %s/%s/%s:%s",
-		w.Org, w.Repo, w.Branch, w.RepoFilePath,
+		w.Org, w.Repo, w.Branch, w.RepoOrg,
 	)
 
 	_, err = bot.cli.CreateFile(b.Org, b.Repo, b.Branch, path, content, msg)

@@ -118,7 +118,6 @@ func (e *expectState) init(orgPath, sigFilePath, sigDir string) (string, error) 
 			return "init"
 		})
 		reposInfo.Repositories = append(reposInfo.Repositories, *singleRepo)
-
 	}
 	reposInfo.Validate()
 	e.reposInfo = reposInfo
@@ -139,7 +138,7 @@ func (e *expectState) check(
 	clearLocal func(func(string) bool),
 	checkRepo func(*community.Repository, []string, *logrus.Entry),
 ) {
-	allFiles, err := e.listAllFilesOfRepo(org)
+	allFiles, allSigs, err := e.listAllFilesOfRepo(org)
 	if err != nil {
 		e.log.Errorf("list all file, err:%s", err.Error())
 
@@ -152,23 +151,22 @@ func (e *expectState) check(
 	repoSigsInfo := make(map[string]string)
 
 	for i := range allFiles {
+		expState := e.getRepoFile(i)
+		singleRepo := expState.refresh(getSHA)
+
 		path := strings.Split(i, ".yaml")[0]
 		pathArr := strings.Split(path, "/")
 		repoName := pathArr[4]
 		repoSigsInfo[repoName] = pathArr[1]
-		hasSameRepo := false
-		for _, key := range e.reposInfo.Repositories {
-			if key.Name == repoName {
-				hasSameRepo = true
+
+		for i := 0; i < len(e.reposInfo.Repositories); i++ {
+			if e.reposInfo.Repositories[i].Name == repoName {
+				e.reposInfo.Repositories = append(e.reposInfo.Repositories[:i], e.reposInfo.Repositories[i+1:]...)
+				i--
 				break
 			}
 		}
-		if hasSameRepo {
-			continue
-		}
 
-		expState := e.getRepoFile(i)
-		singleRepo := expState.refresh(getSHA)
 		e.reposInfo.Repositories = append(e.reposInfo.Repositories, *singleRepo)
 	}
 
@@ -208,12 +206,14 @@ func (e *expectState) check(
 		_, ok := repoMap[r]
 		return ok
 	})
+	getSigSHA := func(p string) string {
+		return allSigs[p]
+	}
 
 	done := sets.NewString()
 	for repo := range repoSigsInfo {
 		sigOwner := e.getSigOwner(repoSigsInfo[repo])
-		owners := sigOwner.refresh(getSHA)
-
+		owners := sigOwner.refresh(getSigSHA)
 		if isStopped() {
 			break
 		}
@@ -254,7 +254,6 @@ func (e *expectState) getSigOwner(sigName string) *expectSigOwners {
 				path.Join(e.sigDir, sigName, "OWNERS"),
 			),
 		}
-
 		e.sigOwners[sigName] = o
 	}
 
@@ -282,23 +281,35 @@ func (e *expectState) newWatchingFile(p string) watchingFile {
 	}
 }
 
-func (e *expectState) listAllFilesOfRepo(org string) (map[string]string, error) {
+func (e *expectState) listAllFilesOfRepo(org string) (map[string]string, map[string]string, error) {
 	trees, err := e.cli.GetDirectoryTree(e.w.Org, e.w.Repo, e.w.Branch, 1)
 	if err != nil || len(trees.Tree) == 0 {
-		return nil, err
+		return nil, nil, err
 	}
 
 	r := make(map[string]string)
+	s := make(map[string]string)
 	for i := range trees.Tree {
 		item := &trees.Tree[i]
 		patharr := strings.Split(item.Path, "/")
-		if patharr[0] != "sig" || len(patharr) != 5 || patharr[2] != org {
+		if len(patharr) == 0 {
 			continue
 		}
-		r[item.Path] = item.Sha
+		if patharr[0] == "sig" && len(patharr) == 5 && patharr[2] == org {
+			form := strings.Split(patharr[4], ".")
+			if len(form) != 2 || form[1] != "yaml" {
+				continue
+			}
+			r[item.Path] = item.Sha
+			continue
+		}
+		if patharr[0] == "sig" && len(patharr) == 3 && patharr[2] == "OWNERS" {
+			s[item.Path] = item.Sha
+			continue
+		}
 	}
 
-	return r, nil
+	return r, s, nil
 }
 
 func (e *expectState) loadFile(f string) (string, string, error) {

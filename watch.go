@@ -29,13 +29,14 @@ func (bot *robot) run(ctx context.Context, log *logrus.Entry) error {
 		sigOwners: make(map[string]*expectSigOwners),
 	}
 
-	org, err := expect.init(w.RepoFilePath, w.SigFilePath, w.SigDir)
+	org, err := expect.init(w.RepoOrg, w.SigFilePath, w.SigDir)
 	if err != nil {
 		return err
 	}
 
 	local, err := bot.loadALLRepos(org)
 	if err != nil {
+		log.Errorf("Load repos of org(%s) failed, err:%s", org, err.Error())
 		return err
 	}
 

@@ -34,8 +34,8 @@ type repoBranch struct {
 type watchingFiles struct {
 	repoBranch
 
-	// RepoFilePath is the path to repo file. For example: repository/openeuler.yaml
-	RepoFilePath string `json:"repo_file_path" required:"true"`
+	// RepoOrg is the organization which repo is belong to. For example: openeuler or src-openeuler
+	RepoOrg string `json:"repo_org" required:"true"`
 
 	// SigFilePath is the path to sig file. For example: sig/sigs.yaml
 	SigFilePath string `json:"sig_file_path" required:"true"`

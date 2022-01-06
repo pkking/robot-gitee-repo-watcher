@@ -157,6 +157,13 @@ func (e *expectState) check(
 		path := strings.Split(i, ".yaml")[0]
 		pathArr := strings.Split(path, "/")
 		repoName := pathArr[4]
+
+		//if repofile name is not same with the Name in the file.
+		if singleRepo.Name != repoName {
+			e.log.Infof("File name(%s) is not same with Repo name(%s) in file.", repoName, singleRepo.Name)
+			continue
+		}
+
 		repoSigsInfo[repoName] = pathArr[1]
 
 		for i := 0; i < len(e.reposInfo.Repositories); i++ {
@@ -220,7 +227,6 @@ func (e *expectState) check(
 		if org == "openeuler" && repo == "blog" {
 			continue
 		}
-
 		checkRepo(repoMap[repo], owners.GetOwners(), e.log)
 
 		done.Insert(repo)

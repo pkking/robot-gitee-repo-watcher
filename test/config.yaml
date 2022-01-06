@@ -1,0 +1,19 @@
+config:
+  watching_files:
+    org: ci-bot
+    repo: community
+    branch: master
+    repo_org: oceanstor 
+    sig_file_path: sig/sigs.yaml
+    sig_dir: sig
+  concurrent_size: 50
+  interval: 1
+  enable_creating_obs_meta_project: true
+  obs_meta_project:
+    obs_repo:
+      org: ci-bot
+      repo: obs_meta
+      branch: master
+    project_dir: master/openEuler:Factory
+    project_file_name: _server
+    project_template_path: ./project

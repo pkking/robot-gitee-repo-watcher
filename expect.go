@@ -170,8 +170,7 @@ func (e *expectState) check(
 		e.reposInfo.Repositories = append(e.reposInfo.Repositories, *singleRepo)
 	}
 
-	localRepos := e.reposInfo.Repositories
-	for _, key := range localRepos {
+	for _, key := range e.reposInfo.Repositories {
 		hasSameRepo := false
 		for i := range allFiles {
 			path := strings.Split(i, ".yaml")[0]
@@ -184,11 +183,11 @@ func (e *expectState) check(
 		if hasSameRepo {
 			continue
 		}
-		for i := 0; i < len(localRepos); {
-			if localRepos[i].Name == key.Name {
-				localRepos = append(localRepos[:i], localRepos[i+1:]...)
-			} else {
-				i++
+		for i := 0; i < len(e.reposInfo.Repositories); i++ {
+			if e.reposInfo.Repositories[i].Name == key.Name {
+				e.reposInfo.Repositories = append(e.reposInfo.Repositories[:i], e.reposInfo.Repositories[i+1:]...)
+				delete(repoSigsInfo, key.Name)
+				break
 			}
 		}
 	}

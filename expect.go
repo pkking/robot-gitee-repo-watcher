@@ -142,7 +142,7 @@ func (e *expectState) check(
 	if err != nil {
 		e.log.Errorf("list all file, err:%s", err.Error())
 
-		allFiles = make(map[string]string)
+		return
 	}
 	getSHA := func(p string) string {
 		return allFiles[p]
@@ -218,7 +218,12 @@ func (e *expectState) check(
 
 	done := sets.NewString()
 	for repo := range repoSigsInfo {
-		sigOwner := e.getSigOwner(repoSigsInfo[repo])
+		sigName := repoSigsInfo[repo]
+		if sigName == "sig-recycle" {
+			continue
+		}
+
+		sigOwner := e.getSigOwner(sigName)
 		owners := sigOwner.refresh(getSigSHA)
 		if isStopped() {
 			break

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	sdk "gitee.com/openeuler/go-gitee/gitee"
+	sdk "github.com/opensourceways/go-gitee/gitee"
 	"github.com/sirupsen/logrus"
 
 	"github.com/opensourceways/robot-gitee-repo-watcher/community"
@@ -13,6 +13,7 @@ import (
 
 func (bot *robot) createRepo(
 	expectRepo expectRepoInfo,
+	sigLabel string,
 	log *logrus.Entry,
 	hook func(string, *logrus.Entry),
 ) models.RepoState {
@@ -21,13 +22,13 @@ func (bot *robot) createRepo(
 	repoName := expectRepo.getNewRepoName()
 
 	if n := repo.RenameFrom; n != "" && n != repoName {
-		return bot.renameRepo(expectRepo, log, hook)
+		return bot.renameRepo(expectRepo, sigLabel, log, hook)
 	}
 
 	log = log.WithField("create repo", repoName)
 	log.Info("start")
 
-	property, err := bot.newRepo(org, repo)
+	property, err := bot.newRepo(org, repo, sigLabel)
 	if err != nil {
 		log.Warning("repo exists already")
 
@@ -58,7 +59,7 @@ func (bot *robot) createRepo(
 	}
 }
 
-func (bot *robot) newRepo(org string, repo *community.Repository) (models.RepoProperty, error) {
+func (bot *robot) newRepo(org string, repo *community.Repository, sigLabel string) (models.RepoProperty, error) {
 	err := bot.cli.CreateRepo(org, sdk.RepositoryPostParam{
 		Name:        repo.Name,
 		Description: repo.Description,
@@ -68,6 +69,11 @@ func (bot *robot) newRepo(org string, repo *community.Repository) (models.RepoPr
 		CanComment:  repo.Commentable,
 		Private:     repo.IsPrivate(),
 	})
+	if err != nil {
+		return models.RepoProperty{}, err
+	}
+
+	err = bot.cli.AddProjectLabels(org, repo.Name, []string{sigLabel})
 	if err != nil {
 		return models.RepoProperty{}, err
 	}
@@ -126,6 +132,7 @@ func (bot *robot) initNewlyCreatedRepo(
 
 func (bot *robot) renameRepo(
 	expectRepo expectRepoInfo,
+	sigLabel string,
 	log *logrus.Entry,
 	hook func(string, *logrus.Entry),
 ) models.RepoState {
@@ -144,6 +151,8 @@ func (bot *robot) renameRepo(
 			Path: newRepo,
 		},
 	)
+
+	err = bot.cli.UpdateProjectLabels(org, newRepo, []string{sigLabel})
 
 	defer func(b bool) {
 		if b {

@@ -6,7 +6,7 @@ import (
 	"path"
 	"strings"
 
-	sdk "gitee.com/openeuler/go-gitee/gitee"
+	sdk "github.com/opensourceways/go-gitee/gitee"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/yaml"
@@ -136,7 +136,7 @@ func (e *expectState) check(
 	org string,
 	isStopped func() bool,
 	clearLocal func(func(string) bool),
-	checkRepo func(*community.Repository, []string, *logrus.Entry),
+	checkRepo func(*community.Repository, []string, string, *logrus.Entry),
 ) {
 	allFiles, allSigs, err := e.listAllFilesOfRepo(org)
 	if err != nil {
@@ -232,7 +232,7 @@ func (e *expectState) check(
 		if org == "openeuler" && repo == "blog" {
 			continue
 		}
-		checkRepo(repoMap[repo], owners.GetOwners(), e.log)
+		checkRepo(repoMap[repo], owners.GetOwners(), sigName, e.log)
 
 		done.Insert(repo)
 	}
@@ -241,17 +241,22 @@ func (e *expectState) check(
 		return
 	}
 
-	for k, repo := range repoMap {
+	for repo := range repoSigsInfo {
 		if isStopped() {
 			break
 		}
 
-		if !done.Has(k) {
-			if org == "openeuler" && k == "blog" {
+		if !done.Has(repo) {
+			sigName := repoSigsInfo[repo]
+			if sigName == "sig-recycle" {
 				continue
 			}
 
-			checkRepo(repo, nil, e.log)
+			if org == "openeuler" && repo == "blog" {
+				continue
+			}
+
+			checkRepo(repoMap[repo], nil, sigName, e.log)
 		}
 	}
 }

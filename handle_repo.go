@@ -28,7 +28,7 @@ func (bot *robot) createRepo(
 	log = log.WithField("create repo", repoName)
 	log.Info("start")
 
-	property, err := bot.newRepo(org, repo, sigLabel)
+	property, err := bot.newRepo(org, repo, sigLabel, log)
 	if err != nil {
 		log.Warning("repo exists already")
 
@@ -59,7 +59,7 @@ func (bot *robot) createRepo(
 	}
 }
 
-func (bot *robot) newRepo(org string, repo *community.Repository, sigLabel string) (models.RepoProperty, error) {
+func (bot *robot) newRepo(org string, repo *community.Repository, sigLabel string, log *logrus.Entry,) (models.RepoProperty, error) {
 	err := bot.cli.CreateRepo(org, sdk.RepositoryPostParam{
 		Name:        repo.Name,
 		Description: repo.Description,
@@ -75,7 +75,7 @@ func (bot *robot) newRepo(org string, repo *community.Repository, sigLabel strin
 
 	err = bot.cli.AddProjectLabels(org, repo.Name, []string{sigLabel})
 	if err != nil {
-		return models.RepoProperty{}, err
+		log.Infof("Add project label %s failed, err: %v", sigLabel, err)
 	}
 
 	return models.RepoProperty{
@@ -152,7 +152,7 @@ func (bot *robot) renameRepo(
 		},
 	)
 
-	err = bot.cli.UpdateProjectLabels(org, newRepo, []string{sigLabel})
+	bot.cli.UpdateProjectLabels(org, newRepo, []string{sigLabel})
 
 	defer func(b bool) {
 		if b {

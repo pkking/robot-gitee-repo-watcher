@@ -3,7 +3,7 @@ package main
 import (
 	"sync"
 
-	sdk "gitee.com/openeuler/go-gitee/gitee"
+	sdk "github.com/opensourceways/go-gitee/gitee"
 	"github.com/panjf2000/ants/v2"
 )
 
@@ -28,6 +28,9 @@ type iClient interface {
 	CreateBranch(org, repo, branch, parentBranch string) error
 	SetProtectionBranch(org, repo, branch string) error
 	CancelProtectionBranch(org, repo, branch string) error
+
+	AddProjectLabels(org, repo string, label []string) error
+	UpdateProjectLabels(org, repo string, label []string) error
 }
 
 func newRobot(cli iClient, pool *ants.Pool, cfg *botConfig) *robot {

@@ -80,7 +80,7 @@ func (l logWapper) Printf(format string, args ...interface{}) {
 }
 
 func getConfig(configFile string) (botConfig, error) {
-	agent := config.NewConfigAgent(func() config.PluginConfig {
+	agent := config.NewConfigAgent(func() config.Config {
 		return &configuration{}
 	})
 

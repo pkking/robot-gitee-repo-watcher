@@ -76,7 +76,7 @@ func (bot *robot) watch(ctx context.Context, org string, local *localState, expe
 }
 
 func (bot *robot) checkOnce(ctx context.Context, org string, local *localState, expect *expectState) {
-	f := func(repo *community.Repository, owners []string, log *logrus.Entry) {
+	f := func(repo *community.Repository, owners []string, sigLabel string, log *logrus.Entry) {
 		if repo == nil {
 			return
 		}
@@ -88,6 +88,7 @@ func (bot *robot) checkOnce(ctx context.Context, org string, local *localState, 
 				expectOwners:    owners,
 				expectRepoState: repo,
 			},
+			sigLabel,
 			log,
 		)
 		if err != nil {
@@ -104,10 +105,10 @@ func (bot *robot) checkOnce(ctx context.Context, org string, local *localState, 
 	expect.check(org, isStopped, local.clear, f)
 }
 
-func (bot *robot) execTask(localRepo *models.Repo, expectRepo expectRepoInfo, log *logrus.Entry) error {
+func (bot *robot) execTask(localRepo *models.Repo, expectRepo expectRepoInfo, sigLabel string, log *logrus.Entry) error {
 	f := func(before models.RepoState) models.RepoState {
 		if !before.Available {
-			return bot.createRepo(expectRepo, log, bot.createOBSMetaProject)
+			return bot.createRepo(expectRepo, sigLabel, log, bot.createOBSMetaProject)
 		}
 
 		return models.RepoState{

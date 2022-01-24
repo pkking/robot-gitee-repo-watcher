@@ -311,8 +311,8 @@ func (e *expectState) listAllFilesOfRepo(org string) (map[string]string, map[str
 			continue
 		}
 		if patharr[0] == "sig" && len(patharr) == 5 && patharr[2] == org {
-			form := strings.Split(patharr[4], ".")
-			if len(form) != 2 || form[1] != "yaml" {
+			form := strings.Split(patharr[4], ".yaml")
+			if len(form) != 2 || form[1] != "" {
 				continue
 			}
 			r[item.Path] = item.Sha

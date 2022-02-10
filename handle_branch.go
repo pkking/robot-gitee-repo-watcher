@@ -36,6 +36,10 @@ func (bot *robot) handleBranch(
 			eb := bsExpect.get(name)
 			lb := bsLocal.get(name)
 			if eb.Type != lb.Type {
+				if eb.Type == "readonly" {
+					newState = append(newState, *eb)
+					continue
+				}
 				l := log.WithField("update branch", fmt.Sprintf("%s/%s", repo, name))
 				l.Info("start")
 

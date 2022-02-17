@@ -43,11 +43,11 @@ func (r *Repos) Validate() error {
 	s := sets.NewString()
 	for i := range r.Repositories {
 		item := &r.Repositories[i]
-/*
-		if err := item.validate(); err != nil {
-			return fmt.Errorf("validate %d repository, err:%s", i, err.Error())
-		}
-*/
+		/*
+			if err := item.validate(); err != nil {
+				return fmt.Errorf("validate %d repository, err:%s", i, err.Error())
+			}
+		*/
 		n := item.Name
 		if s.Has(n) {
 			return fmt.Errorf("validate %d repository, err:duplicate repo:%s", i, n)
@@ -242,4 +242,72 @@ func (r *RepoOwners) convert() {
 	}
 
 	r.all = o
+}
+
+type SigInfos struct {
+	Name         string              `json:"name, omitempty"`
+	Description  string              `json:"description, omitempty"`
+	MailingList  string              `json:"mailing_list, omitempty"`
+	MeetingUrl   string              `json:"meeting_url, omitempty"`
+	MatureLevel  string              `json:"mature_level, omitempty"`
+	Maintainers  []Maintainer        `json:"maintainers, omitempty"`
+	Repositories []RepoAdmin         `json:"repositories, omitempty"`
+	all          map[string][]string `json:"-"`
+}
+
+type Maintainer struct {
+	GiteeId      string `json:"gitee_id, omitempty"`
+	Name         string `json:"name, omitempty"`
+	Organization string `json:"organization, omitempty"`
+	Email        string `json:"email, omitempty"`
+}
+
+type RepoAdmin struct {
+	Repo   string   `json:"repo, omitempty"`
+	Admins []string `json:"admins, omitempty"`
+}
+
+func (ra *RepoAdmin) validate() error {
+	if ra.Repo == "" {
+		return fmt.Errorf("missing repo name")
+	}
+
+	return nil
+}
+
+func (s *SigInfos) Validate() error {
+	if s == nil {
+		return fmt.Errorf("empty sigInfo")
+	}
+
+	if s.Name == "" {
+		return fmt.Errorf("missing sigName")
+	}
+
+	for _, rp := range s.Repositories {
+		if err := rp.validate(); err != nil {
+			return err
+		}
+	}
+
+	s.convert()
+
+	return nil
+}
+
+func (s *SigInfos) convert() {
+	v := make(map[string][]string, 0)
+	for _, item := range s.Repositories {
+		v[item.Repo] = item.Admins
+	}
+
+	s.all = v
+}
+
+func (s *SigInfos) GetRepoAdmin() map[string][]string {
+	if s == nil {
+		return nil
+	}
+
+	return s.all
 }

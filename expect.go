@@ -2,12 +2,9 @@ package main
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"os"
 	"path"
 	"strings"
-	"time"
 
 	sdk "github.com/opensourceways/go-gitee/gitee"
 	"github.com/sirupsen/logrus"
@@ -88,21 +85,6 @@ func (e *expectSigOwners) refresh(f getSHAFunc) *community.RepoOwners {
 	return nil
 }
 
-type expectSigInfos struct {
-	wf watchingFile
-}
-
-func (e *expectSigInfos) refresh(f getSHAFunc) *community.SigInfos {
-	e.wf.update(f, func() watchingFileObject {
-		return new(community.SigInfos)
-	})
-
-	if v, ok := e.wf.obj.(*community.SigInfos); ok {
-		return v
-	}
-	return nil
-}
-
 type expectState struct {
 	log    *logrus.Entry
 	cli    iClient
@@ -113,8 +95,6 @@ type expectState struct {
 	reposInfo *community.Repos
 	repos     map[string]*expectRepos
 	sigOwners map[string]*expectSigOwners
-
-	sigInfos map[string]*expectSigInfos
 }
 
 func (e *expectState) init(orgPath, sigFilePath, sigDir string) (string, error) {
@@ -156,9 +136,9 @@ func (e *expectState) check(
 	org string,
 	isStopped func() bool,
 	clearLocal func(func(string) bool),
-	checkRepo func(*community.Repository, []string, []string, string, *logrus.Entry),
+	checkRepo func(*community.Repository, []string, string, *logrus.Entry),
 ) {
-	allFiles, allSigs, allSigInfos, err := e.listAllFilesOfRepo(org)
+	allFiles, allSigs, err := e.listAllFilesOfRepo(org)
 	if err != nil {
 		e.log.Errorf("list all file, err:%s", err.Error())
 
@@ -236,12 +216,6 @@ func (e *expectState) check(
 		return allSigs[p]
 	}
 
-	getSigInfoSHA := func(p string) string {
-		return allSigInfos[p]
-	}
-
-	ownersOfSigs := make(map[string][]string)
-
 	done := sets.NewString()
 	for repo := range repoSigsInfo {
 		sigName := repoSigsInfo[repo]
@@ -251,20 +225,6 @@ func (e *expectState) check(
 
 		sigOwner := e.getSigOwner(sigName)
 		owners := sigOwner.refresh(getSigSHA)
-
-		ownersOfSigs[sigName] = owners.GetOwners()
-
-		// get admins of repo
-		sigInfo := e.getSigInfo(sigName)
-		info := sigInfo.refresh(getSigInfoSHA)
-		repoAdmin := info.GetRepoAdmin()
-		admins := make([]string, 0)
-		for k, v := range repoAdmin {
-			if strings.Split(k, "/")[0] == org && strings.Split(k, "/")[1] == repo {
-				admins = v
-			}
-		}
-
 		if isStopped() {
 			break
 		}
@@ -272,12 +232,10 @@ func (e *expectState) check(
 		if org == "openeuler" && repo == "blog" {
 			continue
 		}
-		checkRepo(repoMap[repo], owners.GetOwners(), admins, sigName, e.log)
+		checkRepo(repoMap[repo], owners.GetOwners(), sigName, e.log)
 
 		done.Insert(repo)
 	}
-	//test
-	writeToLog(&allFiles, &allSigs, &repoSigsInfo, &repoMap, &ownersOfSigs)
 
 	if len(repoMap) == done.Len() {
 		return
@@ -298,7 +256,7 @@ func (e *expectState) check(
 				continue
 			}
 
-			checkRepo(repoMap[repo], nil, nil, sigName, e.log)
+			checkRepo(repoMap[repo], nil, sigName, e.log)
 		}
 	}
 }
@@ -330,21 +288,6 @@ func (e *expectState) getRepoFile(repoPath string) *expectRepos {
 	return o
 }
 
-func (e *expectState) getSigInfo(sigName string) *expectSigInfos {
-	o, ok := e.sigInfos[sigName]
-	if !ok {
-		o = &expectSigInfos{
-			wf: e.newWatchingFile(
-				path.Join(e.sigDir, sigName, "sig-info.yaml"),
-			),
-		}
-
-		e.sigInfos[sigName] = o
-	}
-
-	return o
-}
-
 func (e *expectState) newWatchingFile(p string) watchingFile {
 	return watchingFile{
 		file:     p,
@@ -353,15 +296,14 @@ func (e *expectState) newWatchingFile(p string) watchingFile {
 	}
 }
 
-func (e *expectState) listAllFilesOfRepo(org string) (map[string]string, map[string]string, map[string]string, error) {
+func (e *expectState) listAllFilesOfRepo(org string) (map[string]string, map[string]string, error) {
 	trees, err := e.cli.GetDirectoryTree(e.w.Org, e.w.Repo, e.w.Branch, 1)
 	if err != nil || len(trees.Tree) == 0 {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	r := make(map[string]string)
 	s := make(map[string]string)
-	q := make(map[string]string)
 	for i := range trees.Tree {
 		item := &trees.Tree[i]
 		patharr := strings.Split(item.Path, "/")
@@ -380,14 +322,9 @@ func (e *expectState) listAllFilesOfRepo(org string) (map[string]string, map[str
 			s[item.Path] = item.Sha
 			continue
 		}
-
-		if patharr[0] == "sig" && len(patharr) == 3 && patharr[2] == "sig-info.yaml" {
-			q[item.Path] = item.Sha
-			continue
-		}
 	}
 
-	return r, s, q, nil
+	return r, s, nil
 }
 
 func (e *expectState) loadFile(f string) (string, string, error) {
@@ -406,129 +343,4 @@ func decodeYamlFile(content string, v interface{}) error {
 	}
 
 	return yaml.Unmarshal(c, v)
-}
-
-var (
-	Path string
-    MaxFileCount int
-)
-
-func writeToLog(
-	allFiles, allSigs, repoSigsInfo *map[string]string,
-	repoMap *map[string]*community.Repository,
-	ownerOfSigs *map[string][]string,
-) {
-	logPath := Path
-	maxFilesNumber := MaxFileCount
-
-	_, err := os.Stat(logPath)
-	if os.IsNotExist(err) || maxFilesNumber == 0 {
-		return
-	}
-
-	dirs, err := os.ReadDir(logPath)
-	if err != nil {
-		return
-	}
-
-	if len(dirs) >= maxFilesNumber {
-		d := dirs[0]
-		err := os.Remove(path.Join(logPath, d.Name()))
-		if err != nil {
-			return
-		}
-	}
-
-	fileName := fmt.Sprintf("log-%d.log", time.Now().Unix())
-	filePath := path.Join(logPath, fileName)
-
-	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-
-	if _, err := f.WriteString(time.Now().String() + "\n"); err != nil {
-		return
-	}
-
-	if _, err := f.WriteString("allFiles: " + "\n"); err != nil {
-		return
-	}
-
-	allFilesByte, err := json.Marshal(allFiles)
-	if err != nil {
-		return
-	}
-	allFilesString := string(allFilesByte)
-	_, err = f.WriteString(allFilesString + "\n")
-	if err != nil {
-		return
-	}
-
-	if _, err := f.WriteString("allSigs: " + "\n"); err != nil {
-		return
-	}
-
-	allSigsByte, err := json.Marshal(allSigs)
-	if err != nil {
-		return
-	}
-	allSigsString := string(allSigsByte)
-	_, err = f.WriteString(allSigsString + "\n")
-	if err != nil {
-		return
-	}
-
-	if _, err := f.WriteString("repoSigsInfo: " + "\n"); err != nil {
-		return
-	}
-
-	repoSigsInfoByte, err := json.Marshal(repoSigsInfo)
-	if err != nil {
-		return
-	}
-	repoSigsInfoString := string(repoSigsInfoByte)
-	_, err = f.WriteString(repoSigsInfoString + "\n")
-	if err != nil {
-		return
-	}
-
-	if _, err := f.WriteString("repoMap: " + "\n"); err != nil {
-		return
-	}
-	for k, v := range *repoMap {
-		b, err := json.Marshal(v)
-		if err != nil {
-			continue
-		}
-		_, err = f.WriteString(k + ": ")
-		if err != nil {
-			return
-		}
-		s := string(b)
-		_, err = f.WriteString(s + "\n")
-		if err != nil {
-			return
-		}
-	}
-
-	if _, err := f.WriteString("ownerOfSigs: " + "\n"); err != nil {
-		return
-	}
-	for k, v := range *ownerOfSigs {
-		b, err := json.Marshal(v)
-		if err != nil {
-			continue
-		}
-		_, err = f.WriteString(k + ": ")
-		if err != nil {
-			return
-		}
-		s := string(b)
-		_, err = f.WriteString(s + "\n")
-		if err != nil {
-			return
-		}
-	}
 }

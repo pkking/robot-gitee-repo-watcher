@@ -2,9 +2,12 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"os"
 	"path"
 	"strings"
+	"time"
 
 	sdk "github.com/opensourceways/go-gitee/gitee"
 	"github.com/sirupsen/logrus"
@@ -216,6 +219,8 @@ func (e *expectState) check(
 		return allSigs[p]
 	}
 
+	ownersOfSigs := make(map[string][]string)
+
 	done := sets.NewString()
 	for repo := range repoSigsInfo {
 		sigName := repoSigsInfo[repo]
@@ -225,6 +230,8 @@ func (e *expectState) check(
 
 		sigOwner := e.getSigOwner(sigName)
 		owners := sigOwner.refresh(getSigSHA)
+
+		ownersOfSigs[sigName] = owners.GetOwners()
 		if isStopped() {
 			break
 		}
@@ -236,6 +243,8 @@ func (e *expectState) check(
 
 		done.Insert(repo)
 	}
+
+	writeToLog(&allFiles, &allSigs, &repoSigsInfo, &repoMap, &ownersOfSigs)
 
 	if len(repoMap) == done.Len() {
 		return
@@ -343,4 +352,124 @@ func decodeYamlFile(content string, v interface{}) error {
 	}
 
 	return yaml.Unmarshal(c, v)
+}
+
+func writeToLog(
+	allFiles, allSigs, repoSigsInfo *map[string]string,
+	repoMap *map[string]*community.Repository,
+	ownerOfSigs *map[string][]string,
+) {
+	logPath := "/home/watcher/Log"
+	maxFilesNumber := 20
+
+	_, err := os.Stat(logPath)
+	if os.IsNotExist(err) {
+		return
+	}
+
+	dirs, err := os.ReadDir(logPath)
+	if err != nil {
+		return
+	}
+
+	if len(dirs) >= maxFilesNumber {
+		d := dirs[0]
+		err := os.Remove(path.Join(logPath, d.Name()))
+		if err != nil {
+			return
+		}
+	}
+
+	fileName := fmt.Sprintf("log-%d.log", time.Now().Unix())
+	filePath := path.Join(logPath, fileName)
+
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	if _, err := f.WriteString(time.Now().String() + "\n"); err != nil {
+		return
+	}
+
+	if _, err := f.WriteString("allFiles: " + "\n"); err != nil {
+		return
+	}
+
+	allFilesByte, err := json.Marshal(allFiles)
+	if err != nil {
+		return
+	}
+	allFilesString := string(allFilesByte)
+	_, err = f.WriteString(allFilesString + "\n")
+	if err != nil {
+		return
+	}
+
+	if _, err := f.WriteString("allSigs: " + "\n"); err != nil {
+		return
+	}
+
+	allSigsByte, err := json.Marshal(allSigs)
+	if err != nil {
+		return
+	}
+	allSigsString := string(allSigsByte)
+	_, err = f.WriteString(allSigsString + "\n")
+	if err != nil {
+		return
+	}
+
+	if _, err := f.WriteString("repoSigsInfo: " + "\n"); err != nil {
+		return
+	}
+
+	repoSigsInfoByte, err := json.Marshal(repoSigsInfo)
+	if err != nil {
+		return
+	}
+	repoSigsInfoString := string(repoSigsInfoByte)
+	_, err = f.WriteString(repoSigsInfoString + "\n")
+	if err != nil {
+		return
+	}
+
+	if _, err := f.WriteString("repoMap: " + "\n"); err != nil {
+		return
+	}
+	for k, v := range *repoMap {
+		b, err := json.Marshal(v)
+		if err != nil {
+			continue
+		}
+		_, err = f.WriteString(k + ": ")
+		if err != nil {
+			return
+		}
+		s := string(b)
+		_, err = f.WriteString(s + "\n")
+		if err != nil {
+			return
+		}
+	}
+
+	if _, err := f.WriteString("ownerOfSigs: " + "\n"); err != nil {
+		return
+	}
+	for k, v := range *ownerOfSigs {
+		b, err := json.Marshal(v)
+		if err != nil {
+			continue
+		}
+		_, err = f.WriteString(k + ": ")
+		if err != nil {
+			return
+		}
+		s := string(b)
+		_, err = f.WriteString(s + "\n")
+		if err != nil {
+			return
+		}
+	}
 }

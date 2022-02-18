@@ -21,8 +21,6 @@ import (
 type options struct {
 	gitee      liboptions.GiteeOptions
 	configFile string
-	path       string
-	maxFileCount int
 }
 
 func (o *options) Validate() error {
@@ -35,8 +33,6 @@ func gatherOptions(fs *flag.FlagSet, args ...string) options {
 	o.gitee.AddFlags(fs)
 
 	fs.StringVar(&o.configFile, "config-file", "", "Path to config file.")
-	fs.StringVar(&o.path, "log-path", "", "path to log")
-	fs.IntVar(&o.maxFileCount, "max-file-count", 0, "max number of log files")
 
 	fs.Parse(args)
 	return o
@@ -49,8 +45,6 @@ func main() {
 	if err := o.Validate(); err != nil {
 		logrus.WithError(err).Fatal("Invalid options")
 	}
-
-	getWriteLogConfig(&o)
 
 	cfg, err := getConfig(o.configFile)
 	if err != nil {
@@ -148,9 +142,4 @@ func run(bot *robot) {
 	if err := bot.run(ctx, log); err != nil {
 		log.Errorf("start watching, err:%s", err.Error())
 	}
-}
-
-func getWriteLogConfig(o *options) {
-	Path = o.path
-	MaxFileCount = o.maxFileCount
 }

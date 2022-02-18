@@ -13,7 +13,6 @@ import (
 type expectRepoInfo struct {
 	expectRepoState *community.Repository
 	expectOwners    []string
-	expectAdmins    []string
 	org             string
 }
 
@@ -28,7 +27,6 @@ func (bot *robot) run(ctx context.Context, log *logrus.Entry) error {
 		log:       log,
 		cli:       bot.cli,
 		sigOwners: make(map[string]*expectSigOwners),
-		sigInfos: make(map[string]*expectSigInfos),
 	}
 
 	org, err := expect.init(w.RepoOrg, w.SigFilePath, w.SigDir)
@@ -78,7 +76,7 @@ func (bot *robot) watch(ctx context.Context, org string, local *localState, expe
 }
 
 func (bot *robot) checkOnce(ctx context.Context, org string, local *localState, expect *expectState) {
-	f := func(repo *community.Repository, owners []string, admins []string, sigLabel string, log *logrus.Entry) {
+	f := func(repo *community.Repository, owners []string, sigLabel string, log *logrus.Entry) {
 		if repo == nil {
 			return
 		}
@@ -88,7 +86,6 @@ func (bot *robot) checkOnce(ctx context.Context, org string, local *localState, 
 			expectRepoInfo{
 				org:             org,
 				expectOwners:    owners,
-				expectAdmins:    admins,
 				expectRepoState: repo,
 			},
 			sigLabel,

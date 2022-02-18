@@ -34,6 +34,13 @@ func (bot *robot) createOBSMetaProject(repo string, log *logrus.Entry) {
 
 	_, err = bot.cli.CreateFile(b.Org, b.Repo, b.Branch, path, content, msg)
 	if err != nil {
-		log.Errorf("ceate file: %s, err:%s", path, err.Error())
+		for i:=0;i<2;i++ {
+			_, err := bot.cli.CreateFile(b.Org, b.Repo, b.Branch, path, content, msg)
+			if err == nil {
+				break
+			}
+
+			log.Errorf("create file: %s, err:%s", path, err.Error())
+		}
 	}
 }

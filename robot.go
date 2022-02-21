@@ -31,6 +31,8 @@ type iClient interface {
 
 	AddProjectLabels(org, repo string, label []string) error
 	UpdateProjectLabels(org, repo string, label []string) error
+
+	ListCollaborators(org, repo string) ([]sdk.ProjectMember, error)
 }
 
 func newRobot(cli iClient, pool *ants.Pool, cfg *botConfig) *robot {

@@ -245,17 +245,17 @@ func (r *RepoOwners) convert() {
 }
 
 type SigInfos struct {
-	Name         string              `json:"name, omitempty"`
-	Description  string              `json:"description, omitempty"`
-	MailingList  string              `json:"mailing_list, omitempty"`
-	MeetingUrl   string              `json:"meeting_url, omitempty"`
-	MatureLevel  string              `json:"mature_level, omitempty"`
-	Mentors      []Mentor            `json:"mentors, omitempty"`
-	Maintainers  []Maintainer        `json:"maintainers, omitempty"`
-	Committers   []Committer         `json:"committers, omitempty"`
-	Repositories []RepoAdmin         `json:"repositories, omitempty"`
-	admins       map[string][]string `json:"-"`
-	owners       map[string][]string `json:"-"`
+	Name             string              `json:"name, omitempty"`
+	Description      string              `json:"description, omitempty"`
+	MailingList      string              `json:"mailing_list, omitempty"`
+	MeetingUrl       string              `json:"meeting_url, omitempty"`
+	MatureLevel      string              `json:"mature_level, omitempty"`
+	Mentors          []Mentor            `json:"mentors, omitempty"`
+	Maintainers      []Maintainer        `json:"maintainers, omitempty"`
+	Repositories     []RepoAdmin         `json:"repositories, omitempty"`
+	admins           map[string][]string `json:"-"`
+	owners           []string            `json:"-"`
+	additionalOwners map[string][]string `json:"-"`
 }
 
 type Maintainer struct {
@@ -266,12 +266,13 @@ type Maintainer struct {
 }
 
 type RepoAdmin struct {
-	Repo   				   string   `json:"repo, omitempty"`
-	Admins 				   []string `json:"admins, omitempty"`
-	AdditionalContributors []AdditionalContributor `json:"additional_contributors, omitempty"`
+	Repo                   []string                `json:"repo, omitempty"`
+	Admins                 []Admin                 `json:"admins, omitempty"`
+	Committers 			   []Committer             `json:"committers, omitempty"`
+	Contributors 		   []Contributor           `json:"contributor, omitempty"`
 }
 
-type AdditionalContributor struct {
+type Contributor struct {
 	GiteeId      string `json:"gitee_id, omitempty"`
 	Name         string `json:"name, omitempty"`
 	Organization string `json:"organization, omitempty"`
@@ -292,9 +293,76 @@ type Committer struct {
 	Email        string `json:"email, omitempty"`
 }
 
+type Admin struct {
+	GiteeId      string `json:"gitee_id, omitempty"`
+	Name         string `json:"name, omitempty"`
+	Organization string `json:"organization, omitempty"`
+	Email        string `json:"email, omitempty"`
+}
+
 func (ra *RepoAdmin) validate() error {
-	if ra.Repo == "" {
+	if len(ra.Repo) == 0 {
 		return fmt.Errorf("missing repo name")
+	}
+
+	for _, ad := range ra.Admins {
+		if err := ad.validate(); err != nil {
+			return err
+		}
+	}
+
+	for _, ad := range ra.Committers {
+		if err := ad.validate(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *Maintainer) validate() error {
+	if m == nil {
+		return fmt.Errorf("miss maintainers' information")
+	}
+
+	if m.GiteeId == "" {
+		return fmt.Errorf("miss gitee id")
+	}
+
+	return nil
+}
+
+func (c *Contributor) validate() error {
+	if c == nil {
+		return fmt.Errorf("miss committers' information")
+	}
+
+	if c.GiteeId == "" {
+		return fmt.Errorf("miss gitee id")
+	}
+
+	return nil
+}
+
+func (a *Committer) validate() error {
+	if a == nil {
+		return fmt.Errorf("miss additionalcontributors' information")
+	}
+
+	if a.GiteeId == "" {
+		return fmt.Errorf("miss gitee id")
+	}
+
+	return nil
+}
+
+func (a *Admin) validate() error {
+	if a == nil {
+		return fmt.Errorf("miss admins' information")
+	}
+
+	if a.GiteeId == "" {
+		return fmt.Errorf("miss gitee id")
 	}
 
 	return nil
@@ -315,6 +383,12 @@ func (s *SigInfos) Validate() error {
 		}
 	}
 
+	for _, m := range s.Maintainers {
+		if err := m.validate(); err != nil {
+			return err
+		}
+	}
+
 	s.convert()
 
 	return nil
@@ -323,15 +397,29 @@ func (s *SigInfos) Validate() error {
 func (s *SigInfos) convert() {
 	v := make(map[string][]string, 0)
 	k := make(map[string][]string, 0)
+
 	for _, item := range s.Repositories {
-		v[item.Repo] = item.Admins
-		for _, i := range item.AdditionalContributors {
-			k[item.Repo] = append(k[item.Repo], strings.ToLower(i.GiteeId))
+		for _, j := range item.Admins {
+			for _, m := range item.Repo {
+				v[m] = append(v[m], strings.ToLower(j.GiteeId))
+			}
+		}
+
+		for _, i := range item.Committers {
+			for _, m := range item.Repo {
+				k[m] = append(k[m], strings.ToLower(i.GiteeId))
+			}
 		}
 	}
 
+	j := make([]string, 0)
+	for _, i := range s.Maintainers {
+		j = append(j, strings.ToLower(i.GiteeId))
+	}
+
 	s.admins = v
-	s.owners = k
+	s.owners = j
+	s.additionalOwners = k
 }
 
 func (s *SigInfos) GetRepoAdmin() map[string][]string {
@@ -343,6 +431,14 @@ func (s *SigInfos) GetRepoAdmin() map[string][]string {
 }
 
 func (s *SigInfos) GetRepoAdditionalOwners() map[string][]string {
+	if s == nil {
+		return nil
+	}
+
+	return s.additionalOwners
+}
+
+func (s *SigInfos) GetRepoOwners() []string {
 	if s == nil {
 		return nil
 	}

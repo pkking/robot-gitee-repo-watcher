@@ -249,46 +249,93 @@ func (e *expectState) check(
 			continue
 		}
 
+		if _, ok := allSigs[fmt.Sprintf("sig/%s/OWNERS", sigName)]; !ok {
+			delete(e.sigOwners, sigName)
+		}
+
 		sigOwner := e.getSigOwner(sigName)
 		owners := sigOwner.refresh(getSigSHA)
 
-		ownersOfSigs[sigName] = owners.GetOwners()
+		// when sig doesn't have a OWNERS file, use sig-info.yaml
+		if len(owners.GetOwners()) == 0 {
+			rawOwners := make([]string, 0)
+			sigInfo := e.getSigInfo(sigName)
+			info := sigInfo.refresh(getSigInfoSHA)
+			repoAdmin := info.GetRepoAdmin()
+			repoOwners := info.GetRepoAdditionalOwners()
+			rawOwners = info.GetRepoOwners()
+			admins := make([]string, 0)
+			additionalOwners := make([]string, 0)
 
-		// get admins of repo
-		sigInfo := e.getSigInfo(sigName)
-		info := sigInfo.refresh(getSigInfoSHA)
-		repoAdmin := info.GetRepoAdmin()
-		repoOwners := info.GetRepoAdditionalOwners()
-		admins := make([]string, 0)
-		additionalOwners := make([]string, 0)
-		for k, v := range repoAdmin {
-			if strings.Split(k, "/")[0] == org && strings.Split(k, "/")[1] == repo {
-				admins = v
+			for k, v := range repoAdmin {
+				if strings.Split(k, "/")[0] == org && strings.Split(k, "/")[1] == repo {
+					admins = v
+				}
 			}
-		}
 
-		for k, v := range repoOwners {
-			if strings.Split(k, "/")[0] == org && strings.Split(k, "/")[1] == repo {
-				additionalOwners = v
+			for k, v := range repoOwners {
+				if strings.Split(k, "/")[0] == org && strings.Split(k, "/")[1] == repo {
+					additionalOwners = v
+				}
 			}
-		}
 
-		if isStopped() {
-			break
-		}
+			if isStopped() {
+				break
+			}
 
-		if org == "openeuler" && repo == "blog" {
-			continue
-		}
+			if org == "openeuler" && repo == "blog" {
+				continue
+			}
 
-		if len(additionalOwners) > 0 {
-			allOwners := append(owners.GetOwners(), additionalOwners...)
-			checkRepo(repoMap[repo], allOwners, admins, sigName, e.log)
+			if len(additionalOwners) > 0 {
+				allOwners := append(rawOwners, additionalOwners...)
+				ownersOfSigs[sigName] = allOwners
+				checkRepo(repoMap[repo], allOwners, admins, sigName, e.log)
+			}else {
+				ownersOfSigs[sigName] = rawOwners
+				checkRepo(repoMap[repo], rawOwners, admins, sigName, e.log)
+			}
+
+			done.Insert(repo)
 		}else {
-			checkRepo(repoMap[repo], owners.GetOwners(), admins, sigName, e.log)
-		}
+			// when sig has a OWNERS file, use it
+			sigInfo := e.getSigInfo(sigName)
+			info := sigInfo.refresh(getSigInfoSHA)
+			repoAdmin := info.GetRepoAdmin()
+			repoOwners := info.GetRepoAdditionalOwners()
+			admins := make([]string, 0)
+			additionalOwners := make([]string, 0)
+			for k, v := range repoAdmin {
+				if strings.Split(k, "/")[0] == org && strings.Split(k, "/")[1] == repo {
+					admins = v
+				}
+			}
 
-		done.Insert(repo)
+			for k, v := range repoOwners {
+				if strings.Split(k, "/")[0] == org && strings.Split(k, "/")[1] == repo {
+					additionalOwners = v
+				}
+			}
+
+			if isStopped() {
+				break
+			}
+
+			if org == "openeuler" && repo == "blog" {
+				continue
+			}
+
+			if len(additionalOwners) > 0 {
+				allOwners := append(owners.GetOwners(), additionalOwners...)
+				ownersOfSigs[sigName] = allOwners
+				checkRepo(repoMap[repo], allOwners, admins, sigName, e.log)
+			}else {
+				ownersOfSigs[sigName] = owners.GetOwners()
+				checkRepo(repoMap[repo], owners.GetOwners(), admins, sigName, e.log)
+			}
+
+			done.Insert(repo)
+		}
 	}
 
 	writeToLog(&allFiles, &allSigs, &repoSigsInfo, &repoMap, &ownersOfSigs)

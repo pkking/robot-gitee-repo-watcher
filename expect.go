@@ -88,6 +88,21 @@ func (e *expectSigOwners) refresh(f getSHAFunc) *community.RepoOwners {
 	return nil
 }
 
+type expectSigInfos struct {
+	wf watchingFile
+}
+
+func (e *expectSigInfos) refresh(f getSHAFunc) *community.SigInfos {
+	e.wf.update(f, func() watchingFileObject {
+		return new(community.SigInfos)
+	})
+
+	if v, ok := e.wf.obj.(*community.SigInfos); ok {
+		return v
+	}
+	return nil
+}
+
 type expectState struct {
 	log    *logrus.Entry
 	cli    iClient
@@ -98,6 +113,8 @@ type expectState struct {
 	reposInfo *community.Repos
 	repos     map[string]*expectRepos
 	sigOwners map[string]*expectSigOwners
+
+	sigInfos map[string]*expectSigInfos
 }
 
 func (e *expectState) init(orgPath, sigFilePath, sigDir string) (string, error) {
@@ -139,9 +156,9 @@ func (e *expectState) check(
 	org string,
 	isStopped func() bool,
 	clearLocal func(func(string) bool),
-	checkRepo func(*community.Repository, []string, string, *logrus.Entry),
+	checkRepo func(*community.Repository, []string, []string, string, *logrus.Entry),
 ) {
-	allFiles, allSigs, err := e.listAllFilesOfRepo(org)
+	allFiles, allSigs, allSigInfos, err := e.listAllFilesOfRepo(org)
 	if err != nil {
 		e.log.Errorf("list all file, err:%s", err.Error())
 
@@ -219,6 +236,10 @@ func (e *expectState) check(
 		return allSigs[p]
 	}
 
+	getSigInfoSHA := func(p string) string {
+		return allSigInfos[p]
+	}
+
 	ownersOfSigs := make(map[string][]string)
 
 	done := sets.NewString()
@@ -228,20 +249,93 @@ func (e *expectState) check(
 			continue
 		}
 
+		if _, ok := allSigs[fmt.Sprintf("sig/%s/OWNERS", sigName)]; !ok {
+			delete(e.sigOwners, sigName)
+		}
+
 		sigOwner := e.getSigOwner(sigName)
 		owners := sigOwner.refresh(getSigSHA)
 
-		ownersOfSigs[sigName] = owners.GetOwners()
-		if isStopped() {
-			break
-		}
+		// when sig doesn't have a OWNERS file, use sig-info.yaml
+		if len(owners.GetOwners()) == 0 {
+			rawOwners := make([]string, 0)
+			sigInfo := e.getSigInfo(sigName)
+			info := sigInfo.refresh(getSigInfoSHA)
+			repoAdmin := info.GetRepoAdmin()
+			repoOwners := info.GetRepoAdditionalOwners()
+			rawOwners = info.GetRepoOwners()
+			admins := make([]string, 0)
+			additionalOwners := make([]string, 0)
 
-		if org == "openeuler" && repo == "blog" {
-			continue
-		}
-		checkRepo(repoMap[repo], owners.GetOwners(), sigName, e.log)
+			for k, v := range repoAdmin {
+				if strings.Split(k, "/")[0] == org && strings.Split(k, "/")[1] == repo {
+					admins = v
+				}
+			}
 
-		done.Insert(repo)
+			for k, v := range repoOwners {
+				if strings.Split(k, "/")[0] == org && strings.Split(k, "/")[1] == repo {
+					additionalOwners = v
+				}
+			}
+
+			if isStopped() {
+				break
+			}
+
+			if org == "openeuler" && repo == "blog" {
+				continue
+			}
+
+			if len(additionalOwners) > 0 {
+				allOwners := append(rawOwners, additionalOwners...)
+				ownersOfSigs[sigName] = allOwners
+				checkRepo(repoMap[repo], allOwners, admins, sigName, e.log)
+			}else {
+				ownersOfSigs[sigName] = rawOwners
+				checkRepo(repoMap[repo], rawOwners, admins, sigName, e.log)
+			}
+
+			done.Insert(repo)
+		}else {
+			// when sig has a OWNERS file, use it
+			sigInfo := e.getSigInfo(sigName)
+			info := sigInfo.refresh(getSigInfoSHA)
+			repoAdmin := info.GetRepoAdmin()
+			repoOwners := info.GetRepoAdditionalOwners()
+			admins := make([]string, 0)
+			additionalOwners := make([]string, 0)
+			for k, v := range repoAdmin {
+				if strings.Split(k, "/")[0] == org && strings.Split(k, "/")[1] == repo {
+					admins = v
+				}
+			}
+
+			for k, v := range repoOwners {
+				if strings.Split(k, "/")[0] == org && strings.Split(k, "/")[1] == repo {
+					additionalOwners = v
+				}
+			}
+
+			if isStopped() {
+				break
+			}
+
+			if org == "openeuler" && repo == "blog" {
+				continue
+			}
+
+			if len(additionalOwners) > 0 {
+				allOwners := append(owners.GetOwners(), additionalOwners...)
+				ownersOfSigs[sigName] = allOwners
+				checkRepo(repoMap[repo], allOwners, admins, sigName, e.log)
+			}else {
+				ownersOfSigs[sigName] = owners.GetOwners()
+				checkRepo(repoMap[repo], owners.GetOwners(), admins, sigName, e.log)
+			}
+
+			done.Insert(repo)
+		}
 	}
 
 	writeToLog(&allFiles, &allSigs, &repoSigsInfo, &repoMap, &ownersOfSigs)
@@ -265,7 +359,7 @@ func (e *expectState) check(
 				continue
 			}
 
-			checkRepo(repoMap[repo], nil, sigName, e.log)
+			checkRepo(repoMap[repo], nil, nil, sigName, e.log)
 		}
 	}
 }
@@ -297,6 +391,21 @@ func (e *expectState) getRepoFile(repoPath string) *expectRepos {
 	return o
 }
 
+func (e *expectState) getSigInfo(sigName string) *expectSigInfos {
+	o, ok := e.sigInfos[sigName]
+	if !ok {
+		o = &expectSigInfos{
+			wf: e.newWatchingFile(
+				path.Join(e.sigDir, sigName, "sig-info.yaml"),
+			),
+		}
+
+		e.sigInfos[sigName] = o
+	}
+
+	return o
+}
+
 func (e *expectState) newWatchingFile(p string) watchingFile {
 	return watchingFile{
 		file:     p,
@@ -305,14 +414,15 @@ func (e *expectState) newWatchingFile(p string) watchingFile {
 	}
 }
 
-func (e *expectState) listAllFilesOfRepo(org string) (map[string]string, map[string]string, error) {
+func (e *expectState) listAllFilesOfRepo(org string) (map[string]string, map[string]string, map[string]string, error) {
 	trees, err := e.cli.GetDirectoryTree(e.w.Org, e.w.Repo, e.w.Branch, 1)
 	if err != nil || len(trees.Tree) == 0 {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	r := make(map[string]string)
 	s := make(map[string]string)
+	q := make(map[string]string)
 	for i := range trees.Tree {
 		item := &trees.Tree[i]
 		patharr := strings.Split(item.Path, "/")
@@ -331,9 +441,14 @@ func (e *expectState) listAllFilesOfRepo(org string) (map[string]string, map[str
 			s[item.Path] = item.Sha
 			continue
 		}
+
+		if patharr[0] == "sig" && len(patharr) == 3 && patharr[2] == "sig-info.yaml" {
+			q[item.Path] = item.Sha
+			continue
+		}
 	}
 
-	return r, s, nil
+	return r, s, q, nil
 }
 
 func (e *expectState) loadFile(f string) (string, string, error) {

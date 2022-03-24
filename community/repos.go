@@ -43,11 +43,11 @@ func (r *Repos) Validate() error {
 	s := sets.NewString()
 	for i := range r.Repositories {
 		item := &r.Repositories[i]
-/*
-		if err := item.validate(); err != nil {
-			return fmt.Errorf("validate %d repository, err:%s", i, err.Error())
-		}
-*/
+		/*
+			if err := item.validate(); err != nil {
+				return fmt.Errorf("validate %d repository, err:%s", i, err.Error())
+			}
+		*/
 		n := item.Name
 		if s.Has(n) {
 			return fmt.Errorf("validate %d repository, err:duplicate repo:%s", i, n)
@@ -242,4 +242,206 @@ func (r *RepoOwners) convert() {
 	}
 
 	r.all = o
+}
+
+type SigInfos struct {
+	Name             string              `json:"name, omitempty"`
+	Description      string              `json:"description, omitempty"`
+	MailingList      string              `json:"mailing_list, omitempty"`
+	MeetingUrl       string              `json:"meeting_url, omitempty"`
+	MatureLevel      string              `json:"mature_level, omitempty"`
+	Mentors          []Mentor            `json:"mentors, omitempty"`
+	Maintainers      []Maintainer        `json:"maintainers, omitempty"`
+	Repositories     []RepoAdmin         `json:"repositories, omitempty"`
+	admins           map[string][]string `json:"-"`
+	owners           []string            `json:"-"`
+	additionalOwners map[string][]string `json:"-"`
+}
+
+type Maintainer struct {
+	GiteeId      string `json:"gitee_id, omitempty"`
+	Name         string `json:"name, omitempty"`
+	Organization string `json:"organization, omitempty"`
+	Email        string `json:"email, omitempty"`
+}
+
+type RepoAdmin struct {
+	Repo                   []string                `json:"repo, omitempty"`
+	Admins                 []Admin                 `json:"admins, omitempty"`
+	Committers 			   []Committer             `json:"committers, omitempty"`
+	Contributors 		   []Contributor           `json:"contributor, omitempty"`
+}
+
+type Contributor struct {
+	GiteeId      string `json:"gitee_id, omitempty"`
+	Name         string `json:"name, omitempty"`
+	Organization string `json:"organization, omitempty"`
+	Email        string `json:"email, omitempty"`
+}
+
+type Mentor struct {
+	GiteeId      string `json:"gitee_id, omitempty"`
+	Name         string `json:"name, omitempty"`
+	Organization string `json:"organization, omitempty"`
+	Email        string `json:"email, omitempty"`
+}
+
+type Committer struct {
+	GiteeId      string `json:"gitee_id, omitempty"`
+	Name         string `json:"name, omitempty"`
+	Organization string `json:"organization, omitempty"`
+	Email        string `json:"email, omitempty"`
+}
+
+type Admin struct {
+	GiteeId      string `json:"gitee_id, omitempty"`
+	Name         string `json:"name, omitempty"`
+	Organization string `json:"organization, omitempty"`
+	Email        string `json:"email, omitempty"`
+}
+
+func (ra *RepoAdmin) validate() error {
+	if len(ra.Repo) == 0 {
+		return fmt.Errorf("missing repo name")
+	}
+
+	for _, ad := range ra.Admins {
+		if err := ad.validate(); err != nil {
+			return err
+		}
+	}
+
+	for _, ad := range ra.Committers {
+		if err := ad.validate(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *Maintainer) validate() error {
+	if m == nil {
+		return fmt.Errorf("miss maintainers' information")
+	}
+
+	if m.GiteeId == "" {
+		return fmt.Errorf("miss gitee id")
+	}
+
+	return nil
+}
+
+func (c *Contributor) validate() error {
+	if c == nil {
+		return fmt.Errorf("miss committers' information")
+	}
+
+	if c.GiteeId == "" {
+		return fmt.Errorf("miss gitee id")
+	}
+
+	return nil
+}
+
+func (a *Committer) validate() error {
+	if a == nil {
+		return fmt.Errorf("miss additionalcontributors' information")
+	}
+
+	if a.GiteeId == "" {
+		return fmt.Errorf("miss gitee id")
+	}
+
+	return nil
+}
+
+func (a *Admin) validate() error {
+	if a == nil {
+		return fmt.Errorf("miss admins' information")
+	}
+
+	if a.GiteeId == "" {
+		return fmt.Errorf("miss gitee id")
+	}
+
+	return nil
+}
+
+func (s *SigInfos) Validate() error {
+	if s == nil {
+		return fmt.Errorf("empty sigInfo")
+	}
+
+	if s.Name == "" {
+		return fmt.Errorf("missing sigName")
+	}
+
+	for _, rp := range s.Repositories {
+		if err := rp.validate(); err != nil {
+			return err
+		}
+	}
+
+	for _, m := range s.Maintainers {
+		if err := m.validate(); err != nil {
+			return err
+		}
+	}
+
+	s.convert()
+
+	return nil
+}
+
+func (s *SigInfos) convert() {
+	v := make(map[string][]string, 0)
+	k := make(map[string][]string, 0)
+
+	for _, item := range s.Repositories {
+		for _, j := range item.Admins {
+			for _, m := range item.Repo {
+				v[m] = append(v[m], strings.ToLower(j.GiteeId))
+			}
+		}
+
+		for _, i := range item.Committers {
+			for _, m := range item.Repo {
+				k[m] = append(k[m], strings.ToLower(i.GiteeId))
+			}
+		}
+	}
+
+	j := make([]string, 0)
+	for _, i := range s.Maintainers {
+		j = append(j, strings.ToLower(i.GiteeId))
+	}
+
+	s.admins = v
+	s.owners = j
+	s.additionalOwners = k
+}
+
+func (s *SigInfos) GetRepoAdmin() map[string][]string {
+	if s == nil {
+		return nil
+	}
+
+	return s.admins
+}
+
+func (s *SigInfos) GetRepoAdditionalOwners() map[string][]string {
+	if s == nil {
+		return nil
+	}
+
+	return s.additionalOwners
+}
+
+func (s *SigInfos) GetRepoOwners() []string {
+	if s == nil {
+		return nil
+	}
+
+	return s.owners
 }

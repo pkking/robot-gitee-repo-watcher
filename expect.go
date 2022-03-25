@@ -299,25 +299,6 @@ func (e *expectState) check(
 
 			done.Insert(repo)
 		}else {
-			// when sig has a OWNERS file, use it
-			sigInfo := e.getSigInfo(sigName)
-			info := sigInfo.refresh(getSigInfoSHA)
-			repoAdmin := info.GetRepoAdmin()
-			repoOwners := info.GetRepoAdditionalOwners()
-			admins := make([]string, 0)
-			additionalOwners := make([]string, 0)
-			for k, v := range repoAdmin {
-				if strings.Split(k, "/")[0] == org && strings.Split(k, "/")[1] == repo {
-					admins = v
-				}
-			}
-
-			for k, v := range repoOwners {
-				if strings.Split(k, "/")[0] == org && strings.Split(k, "/")[1] == repo {
-					additionalOwners = v
-				}
-			}
-
 			if isStopped() {
 				break
 			}
@@ -326,14 +307,7 @@ func (e *expectState) check(
 				continue
 			}
 
-			if len(additionalOwners) > 0 {
-				allOwners := append(owners.GetOwners(), additionalOwners...)
-				ownersOfSigs[sigName] = allOwners
-				checkRepo(repoMap[repo], allOwners, admins, sigName, e.log)
-			}else {
-				ownersOfSigs[sigName] = owners.GetOwners()
-				checkRepo(repoMap[repo], owners.GetOwners(), admins, sigName, e.log)
-			}
+			checkRepo(repoMap[repo], owners.GetOwners(), nil, sigName, e.log)
 
 			done.Insert(repo)
 		}

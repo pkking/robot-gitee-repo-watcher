@@ -4,7 +4,7 @@ set -euo pipefail
 
 cd $(dirname $0)
 me=$(basename $0)
-plugin_name=$(pwd | xargs basename)
+robot_name=$(pwd | xargs basename)
 pn=$#
 all_param=( $@ )
 

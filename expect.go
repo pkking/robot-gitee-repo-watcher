@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -482,7 +483,7 @@ func writeToLog(
 		return
 	}
 
-	dirs, err := os.ReadDir(logPath)
+	dirs, err := ioutil.ReadDir(logPath)
 	if err != nil {
 		return
 	}

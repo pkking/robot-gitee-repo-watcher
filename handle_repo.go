@@ -231,21 +231,6 @@ func (bot *robot) updateRepo(expectRepo expectRepoInfo, lp models.RepoProperty, 
 	ep := repo.IsPrivate()
 	ec := repo.Commentable
 
-	repoInfo, err := bot.cli.GetRepo(org, repoName)
-	if err == nil {
-		if repoInfo.Description != repo.Description {
-			err := bot.cli.UpdateRepo(org, repoName, sdk.RepoPatchParam{
-				Name: repoName,
-				Description: repo.Description,
-			})
-			if err != nil {
-				log.Errorf("change description of %s failed", repoName)
-			}
-		}
-	}else {
-		log.Errorf("get %s information failed", repoName)
-	}
-
 	if ep != lp.Private || ec != lp.CanComment {
 		log = log.WithField("update repo", repoName)
 		log.Info("start")

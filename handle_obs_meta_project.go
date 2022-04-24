@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-
 	"github.com/sirupsen/logrus"
+	"math/rand"
+	"time"
 )
 
 func (bot *robot) createOBSMetaProject(repo string, log *logrus.Entry) {
@@ -34,7 +35,11 @@ func (bot *robot) createOBSMetaProject(repo string, log *logrus.Entry) {
 
 	_, err = bot.cli.CreateFile(b.Org, b.Repo, b.Branch, path, content, msg)
 	if err != nil {
-		for i:=0;i<2;i++ {
+		for i := 0; i < 2; i++ {
+
+			rand.Seed(time.Now().UnixNano())
+			number := rand.Intn(10000)
+			time.Sleep(time.Duration(number) * time.Millisecond)
 			_, err := bot.cli.CreateFile(b.Org, b.Repo, b.Branch, path, content, msg)
 			if err == nil {
 				break

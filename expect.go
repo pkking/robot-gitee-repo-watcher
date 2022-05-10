@@ -268,15 +268,15 @@ func (e *expectState) check(
 			admins := make([]string, 0)
 			additionalOwners := make([]string, 0)
 
-			for k, v := range repoAdmin {
+			for k := range repoAdmin {
 				if strings.Split(k, "/")[0] == org && strings.Split(k, "/")[1] == repo {
-					admins = v
+					admins = repoAdmin[k]
 				}
 			}
 
-			for k, v := range repoOwners {
+			for k := range repoOwners {
 				if strings.Split(k, "/")[0] == org && strings.Split(k, "/")[1] == repo {
-					additionalOwners = v
+					additionalOwners = repoOwners[k]
 				}
 			}
 

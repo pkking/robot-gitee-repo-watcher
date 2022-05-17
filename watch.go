@@ -28,7 +28,7 @@ func (bot *robot) run(ctx context.Context, log *logrus.Entry) error {
 		log:       log,
 		cli:       bot.cli,
 		sigOwners: make(map[string]*expectSigOwners),
-		sigInfos: make(map[string]*expectSigInfos),
+		sigInfos:  make(map[string]*expectSigInfos),
 	}
 
 	org, err := expect.init(w.RepoOrg, w.SigFilePath, w.SigDir)
@@ -82,12 +82,16 @@ func (bot *robot) checkOnce(ctx context.Context, org string, local *localState, 
 		if repo == nil {
 			return
 		}
+		cpo := make([]string, len(owners))
+		if len(owners) > 0 {
+			copy(cpo, owners)
+		}
 
 		err := bot.execTask(
 			local.getOrNewRepo(repo.Name),
 			expectRepoInfo{
 				org:             org,
-				expectOwners:    owners,
+				expectOwners:    cpo,
 				expectAdmins:    admins,
 				expectRepoState: repo,
 			},

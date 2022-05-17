@@ -266,10 +266,10 @@ type Maintainer struct {
 }
 
 type RepoAdmin struct {
-	Repo                   []string                `json:"repo, omitempty"`
-	Admins                 []Admin                 `json:"admins, omitempty"`
-	Committers 			   []Committer             `json:"committers, omitempty"`
-	Contributors 		   []Contributor           `json:"contributor, omitempty"`
+	Repo         []string      `json:"repo, omitempty"`
+	Admins       []Admin       `json:"admins, omitempty"`
+	Committers   []Committer   `json:"committers, omitempty"`
+	Contributors []Contributor `json:"contributor, omitempty"`
 }
 
 type Contributor struct {
@@ -399,16 +399,20 @@ func (s *SigInfos) convert() {
 	k := make(map[string][]string, 0)
 
 	for _, item := range s.Repositories {
+		admins := make([]string, 0)
 		for _, j := range item.Admins {
-			for _, m := range item.Repo {
-				v[m] = append(v[m], strings.ToLower(j.GiteeId))
-			}
+			admins = append(admins, strings.ToLower(j.GiteeId))
+		}
+		for _, m := range item.Repo {
+			v[m] = admins
 		}
 
+		committers := make([]string, 0)
 		for _, i := range item.Committers {
-			for _, m := range item.Repo {
-				k[m] = append(k[m], strings.ToLower(i.GiteeId))
-			}
+			committers = append(committers, strings.ToLower(i.GiteeId))
+		}
+		for _, m := range item.Repo {
+			k[m] = committers
 		}
 	}
 

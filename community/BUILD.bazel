@@ -1,9 +1,0 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
-
-go_library(
-    name = "go_default_library",
-    srcs = ["repos.go"],
-    importpath = "github.com/opensourceways/robot-gitee-repo-watcher/community",
-    visibility = ["//visibility:public"],
-    deps = ["@io_k8s_apimachinery//pkg/util/sets:go_default_library"],
-)

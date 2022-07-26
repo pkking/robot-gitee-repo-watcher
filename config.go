@@ -2,11 +2,8 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
-	"path"
-	"strings"
-
 	"github.com/huaweicloud/golangsdk"
+	"path"
 )
 
 type configuration struct {
@@ -59,10 +56,6 @@ type obsMetaProject struct {
 
 	// ProjectFileName is the file name of new project
 	ProjectFileName string `json:"project_file_name" required:"true"`
-
-	// ProjectTemplatePath is the template file path which describes the new project
-	ProjectTemplatePath string `json:"project_template_path" required:"true"`
-	projectTemplate     string `json:"-"`
 }
 
 func (o *obsMetaProject) validate() error {
@@ -70,32 +63,11 @@ func (o *obsMetaProject) validate() error {
 		return err
 	}
 
-	t, err := newTemplate(o.ProjectTemplatePath)
-	if err != nil {
-		return err
-	}
-	o.projectTemplate = t
-
 	return nil
-}
-
-func newTemplate(path string) (string, error) {
-	v, err := ioutil.ReadFile(path)
-	if err != nil {
-		return "", fmt.Errorf(
-			"read template file failed: %s",
-			err.Error(),
-		)
-	}
-	return string(v), nil
 }
 
 func (o *obsMetaProject) genProjectFilePath(p string) string {
 	return path.Join(o.ProjectDir, p, o.ProjectFileName)
-}
-
-func (o *obsMetaProject) genProjectFileContent(p string) (string, error) {
-	return strings.Replace(o.projectTemplate, "#projectname#", p, 1), nil
 }
 
 type botConfig struct {

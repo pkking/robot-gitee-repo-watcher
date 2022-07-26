@@ -1,51 +1,74 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"math/rand"
+	"gopkg.in/yaml.v3"
+	"path"
+	"sync"
 	"time"
 )
 
-func (bot *robot) createOBSMetaProject(repo string, log *logrus.Entry) {
+type yamlStruct struct {
+	Packages []PackageInfo `json:"packages,omitempty"`
+}
+
+type PackageInfo struct {
+	Name     string `json:"name,omitempty"`
+	Obs_From string `json:"obs_from,omitempty"`
+	Obs_To   string `json:"obs_to,omitempty"`
+	Date     string `json:"date,omitempty"`
+}
+
+var m sync.Mutex
+
+func (bot *robot) patchFactoryYaml(repo string, log *logrus.Entry) {
+
 	if !bot.cfg.EnableCreatingOBSMetaProject {
 		return
 	}
 
+	m.Lock()
+	defer m.Unlock()
+	var y yamlStruct
+
 	project := &bot.cfg.OBSMetaProject
-	path := project.genProjectFilePath(repo)
+	readingPath := path.Join(project.ProjectDir, project.ProjectFileName)
 	b := &project.Branch
 
-	// file exists
-	if _, err := bot.cli.GetPathContent(b.Org, b.Repo, path, b.Branch); err == nil {
+	f, err := bot.cli.GetPathContent(b.Org, b.Repo, readingPath, b.Branch)
+	if err != nil {
+		log.Errorf("get file %s failed.", readingPath)
 		return
 	}
 
-	content, err := project.genProjectFileContent(repo)
+	c, err := base64.StdEncoding.DecodeString(f.Content)
 	if err != nil {
-		log.Errorf("generate file of project:%s, err:%s", repo, err.Error())
 		return
 	}
 
-	w := &bot.cfg.WatchingFiles
-	msg := fmt.Sprintf(
-		"add project according to the file: %s/%s/%s:%s",
-		w.Org, w.Repo, w.Branch, w.RepoOrg,
-	)
+	if err = yaml.Unmarshal(c, &y); err != nil {
+		return
+	}
 
-	_, err = bot.cli.CreateFile(b.Org, b.Repo, b.Branch, path, content, msg)
+	var p PackageInfo
+	p.Name = repo
+	p.Obs_To = "openEuler:Factory"
+	year, month, day := time.Now().Format("2006"), time.Now().Format("01"), time.Now().Format("02")
+	p.Date = fmt.Sprintf("%s-%s-%s", year, month, day)
+	y.Packages = append(y.Packages, p)
+
+	by, err := yaml.Marshal(&y)
 	if err != nil {
-		for i := 0; i < 2; i++ {
+		return
+	}
 
-			rand.Seed(time.Now().UnixNano())
-			number := rand.Intn(10000)
-			time.Sleep(time.Duration(number) * time.Millisecond)
-			_, err := bot.cli.CreateFile(b.Org, b.Repo, b.Branch, path, content, msg)
-			if err == nil {
-				break
-			}
-
-			log.Errorf("create file: %s, err:%s", path, err.Error())
-		}
+	pathContent := base64.StdEncoding.EncodeToString(by)
+	message := fmt.Sprintf("a new repository %s has been created", repo)
+	err = bot.cli.PatchFile(b.Org, b.Repo, readingPath, b.Branch, pathContent, f.Sha, message)
+	if err != nil {
+		log.Errorf("update file failed %v", err)
+		return
 	}
 }

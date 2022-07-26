@@ -115,7 +115,7 @@ func (bot *robot) checkOnce(ctx context.Context, org string, local *localState, 
 func (bot *robot) execTask(localRepo *models.Repo, expectRepo expectRepoInfo, sigLabel string, log *logrus.Entry) error {
 	f := func(before models.RepoState) models.RepoState {
 		if !before.Available {
-			return bot.createRepo(expectRepo, sigLabel, log, bot.createOBSMetaProject)
+			return bot.createRepo(expectRepo, sigLabel, log, bot.patchFactoryYaml)
 		}
 
 		return models.RepoState{

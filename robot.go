@@ -33,6 +33,7 @@ type iClient interface {
 	UpdateProjectLabels(org, repo string, label []string) error
 
 	ListCollaborators(org, repo string) ([]sdk.ProjectMember, error)
+	PatchFile(owner, repo, path, branch, content, sha, message string) error
 }
 
 func newRobot(cli iClient, pool *ants.Pool, cfg *botConfig) *robot {

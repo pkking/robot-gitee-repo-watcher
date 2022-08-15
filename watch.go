@@ -86,13 +86,17 @@ func (bot *robot) checkOnce(ctx context.Context, org string, local *localState, 
 		if len(owners) > 0 {
 			copy(cpo, owners)
 		}
+		cpa := make([]string, len(admins))
+		if len(admins) > 0 {
+			copy(cpa, admins)
+		}
 
 		err := bot.execTask(
 			local.getOrNewRepo(repo.Name),
 			expectRepoInfo{
 				org:             org,
 				expectOwners:    cpo,
-				expectAdmins:    admins,
+				expectAdmins:    cpa,
 				expectRepoState: repo,
 			},
 			sigLabel,

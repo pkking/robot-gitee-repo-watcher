@@ -34,7 +34,9 @@ func (bot *robot) createRepo(
 
 		if s, b := bot.getRepoState(org, repoName, log); b {
 			s.Branches = bot.handleBranch(expectRepo, s.Branches, log)
-			s.Members = bot.handleMember(expectRepo, s.Members, &s.Owner, log)
+			mbs, ads := bot.handleMember(expectRepo, s.Members, []string{}, &s.Owner, log)
+			s.Members = mbs
+			s.Admins = ads
 			return s
 		}
 
@@ -59,7 +61,7 @@ func (bot *robot) createRepo(
 	}
 }
 
-func (bot *robot) newRepo(org string, repo *community.Repository, sigLabel string, log *logrus.Entry,) (models.RepoProperty, error) {
+func (bot *robot) newRepo(org string, repo *community.Repository, sigLabel string, log *logrus.Entry) (models.RepoProperty, error) {
 	err := bot.cli.CreateRepo(org, sdk.RepositoryPostParam{
 		Name:        repo.Name,
 		Description: repo.Description,
@@ -147,8 +149,8 @@ func (bot *robot) renameRepo(
 		org,
 		oldRepo,
 		sdk.RepoPatchParam{
-			Name: newRepo,
-			Path: newRepo,
+			Name:        newRepo,
+			Path:        newRepo,
 			Description: expectRepo.expectRepoState.Description,
 		},
 	)
@@ -169,7 +171,9 @@ func (bot *robot) renameRepo(
 	// avoid the case that the repo already exists.
 	if s, b := bot.getRepoState(org, newRepo, log); b {
 		s.Branches = bot.handleBranch(expectRepo, s.Branches, log)
-		s.Members = bot.handleMember(expectRepo, s.Members, &s.Owner, log)
+		mbs, ads := bot.handleMember(expectRepo, s.Members, []string{}, &s.Owner, log)
+		s.Members = mbs
+		s.Admins = ads
 		return s
 	}
 

@@ -8,7 +8,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
-func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string, repoOwner *string, log *logrus.Entry) []string {
+func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string, localAdmins []string,
+	repoOwner *string, log *logrus.Entry) ([]string, []string) {
 	org := expectRepo.org
 	repo := expectRepo.getNewRepoName()
 
@@ -16,7 +17,7 @@ func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string,
 		v, err := bot.cli.GetRepo(org, repo)
 		if err != nil {
 			log.Errorf("handle repo members and get repo:%s, err:%s", repo, err.Error())
-			return nil
+			return nil, nil
 		}
 		localMembers = toLowerOfMembers(v.Members)
 		*repoOwner = v.Owner.Login
@@ -26,22 +27,24 @@ func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string,
 	lm := sets.NewString(localMembers...)
 	r := expect.Intersection(lm).UnsortedList()
 
-	allCollaborators, err := bot.cli.ListCollaborators(org, repo)
-	if err != nil {
-		log.Errorf("list all collaborators failed, err: %v", err)
-		return nil
-	}
+	if len(localAdmins) == 0 {
+		allCollaborators, err := bot.cli.ListCollaborators(org, repo)
+		if err != nil {
+			log.Errorf("list all collaborators failed, err: %v", err)
+			return nil, nil
+		}
 
-	localAdmins := make([]string, 0)
-	for _, item := range allCollaborators {
-		if item.Permissions.Admin == true {
-			localAdmins = append(localAdmins, strings.ToLower(item.Login))
+		for _, item := range allCollaborators {
+			if item.Permissions.Admin == true {
+				localAdmins = append(localAdmins, strings.ToLower(item.Login))
+			}
 		}
 	}
 
 	expectAdmins := toLowerOfMembers(expectRepo.expectAdmins)
 	ea := sets.NewString(expectAdmins...)
 	la := sets.NewString(localAdmins...)
+	a := ea.Intersection(la).UnsortedList()
 
 	// add new
 	if v := expect.Difference(lm); v.Len() > 0 {
@@ -97,6 +100,8 @@ func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string,
 
 				if err := bot.addRepoAdmin(org, repo, k); err != nil {
 					l.Errorf("add admin %s to %s/%s failed, err: %v", k, org, repo, err)
+				} else {
+					a = append(a, k)
 				}
 			}
 		}
@@ -110,7 +115,7 @@ func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string,
 			v, err := bot.cli.GetRepo(org, repo)
 			if err != nil {
 				log.Errorf("handle repo members and get repo:%s, err:%s", repo, err.Error())
-				return nil
+				return nil, nil
 			}
 			*repoOwner = v.Owner.Login
 			o = *repoOwner
@@ -129,6 +134,7 @@ func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string,
 
 				if err := bot.cli.RemoveRepoMember(org, repo, k); err != nil {
 					l.Errorf("remove admin %s from %s/%s failed, err: %v", k, org, repo, err)
+					a = append(a, k)
 				}
 
 				if err := bot.addRepoMember(org, repo, k); err != nil {
@@ -138,7 +144,7 @@ func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string,
 		}
 	}
 
-	return r
+	return r, a
 }
 
 // Gitee api will be successful even if adding a member repeatedly.

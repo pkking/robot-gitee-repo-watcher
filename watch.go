@@ -122,10 +122,13 @@ func (bot *robot) execTask(localRepo *models.Repo, expectRepo expectRepoInfo, si
 			return bot.createRepo(expectRepo, sigLabel, log, bot.patchFactoryYaml)
 		}
 
+		mbs, ads := bot.handleMember(expectRepo, before.Members, before.Admins, &before.Owner, log)
+
 		return models.RepoState{
 			Available: true,
 			Branches:  bot.handleBranch(expectRepo, before.Branches, log),
-			Members:   bot.handleMember(expectRepo, before.Members, &before.Owner, log),
+			Members:   mbs,
+			Admins:    ads,
 			Property:  bot.updateRepo(expectRepo, before.Property, log),
 			Owner:     before.Owner,
 		}

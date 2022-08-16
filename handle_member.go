@@ -31,7 +31,6 @@ func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string,
 		allCollaborators, err := bot.cli.ListCollaborators(org, repo)
 		if err != nil {
 			log.Errorf("list all collaborators failed, err: %v", err)
-			return nil, nil
 		}
 
 		for _, item := range allCollaborators {
@@ -66,7 +65,7 @@ func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string,
 		o := *repoOwner
 
 		for k := range v {
-			if k == o {
+			if k == o || k == "openeuler-ci-bot" {
 				// Gitee does not allow to remove the repo owner.
 				continue
 			}
@@ -123,7 +122,7 @@ func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string,
 
 		for k := range v {
 
-			if k == o {
+			if k == o || k == "openeuler-ci-bot" {
 				continue
 			}
 

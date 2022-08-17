@@ -39,20 +39,9 @@ func (bot *robot) loadALLRepos(org string) (*localState, error) {
 
 	for i := range items {
 		item := &items[i]
-
-		colls, _ := bot.cli.ListCollaborators(org, item.Path)
-
-		cols := make([]string, 0)
-		for _, c := range colls {
-			if c.Permissions.Admin == true {
-				cols = append(cols, c.Login)
-			}
-		}
-
 		r.repos[item.Path] = models.NewRepo(item.Path, models.RepoState{
 			Available: true,
 			Members:   toLowerOfMembers(item.Members),
-			Admins:    toLowerOfMembers(cols),
 			Property: models.RepoProperty{
 				Private:    item.Private,
 				CanComment: item.CanComment,

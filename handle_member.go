@@ -27,20 +27,21 @@ func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string,
 	lm := sets.NewString(localMembers...)
 	r := expect.Intersection(lm).UnsortedList()
 
-	if len(localAdmins) == 0 {
-		allCollaborators, err := bot.cli.ListCollaborators(org, repo)
-		if err != nil {
-			log.Errorf("list all collaborators failed, err: %v", err)
-		}
+	expectAdmins := toLowerOfMembers(expectRepo.expectAdmins)
+	if len(expectAdmins) > 0 {
+		if len(localAdmins) == 0 {
+			allCollaborators, err := bot.cli.ListCollaborators(org, repo)
+			if err != nil {
+				log.Errorf("list %s's all collaborators failed, err: %v", repo, err)
+			}
 
-		for _, item := range allCollaborators {
-			if item.Permissions.Admin == true {
-				localAdmins = append(localAdmins, strings.ToLower(item.Login))
+			for _, item := range allCollaborators {
+				if item.Permissions.Admin == true {
+					localAdmins = append(localAdmins, strings.ToLower(item.Login))
+				}
 			}
 		}
 	}
-
-	expectAdmins := toLowerOfMembers(expectRepo.expectAdmins)
 	ea := sets.NewString(expectAdmins...)
 	la := sets.NewString(localAdmins...)
 	a := ea.Intersection(la).UnsortedList()

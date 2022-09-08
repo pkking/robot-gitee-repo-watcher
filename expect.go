@@ -270,7 +270,7 @@ func (e *expectState) check(
 
 			for k := range repoAdmin {
 				if strings.Split(k, "/")[0] == org && strings.Split(k, "/")[1] == repo {
-					admins = repoAdmin[k]
+					admins = append(admins, repoAdmin[k]...)
 				}
 			}
 
@@ -292,13 +292,13 @@ func (e *expectState) check(
 				allOwners := append(rawOwners, additionalOwners...)
 				ownersOfSigs[sigName] = allOwners
 				checkRepo(repoMap[repo], allOwners, admins, sigName, e.log)
-			}else {
+			} else {
 				ownersOfSigs[sigName] = rawOwners
 				checkRepo(repoMap[repo], rawOwners, admins, sigName, e.log)
 			}
 
 			done.Insert(repo)
-		}else {
+		} else {
 			if isStopped() {
 				break
 			}

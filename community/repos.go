@@ -404,7 +404,7 @@ func (s *SigInfos) convert() {
 			admins = append(admins, strings.ToLower(j.GiteeId))
 		}
 		for _, m := range item.Repo {
-			v[m] = admins
+			v[m] = append(v[m], admins...)
 		}
 
 		committers := make([]string, 0)

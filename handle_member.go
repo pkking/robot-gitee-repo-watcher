@@ -46,21 +46,6 @@ func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string,
 	la := sets.NewString(localAdmins...)
 	a := ea.Intersection(la).UnsortedList()
 
-	// add new
-	if v := expect.Difference(lm); v.Len() > 0 {
-		for k := range v {
-			l := log.WithField("add member", fmt.Sprintf("%s:%s", repo, k))
-			l.Info("start")
-
-			// how about adding a member but he/she exits? see the comment of 'addRepoMember'
-			if err := bot.addRepoMember(org, repo, k); err != nil {
-				l.Error(err)
-			} else {
-				r = append(r, k)
-			}
-		}
-	}
-
 	// remove
 	if v := lm.Difference(expect); v.Len() > 0 {
 		o := *repoOwner
@@ -82,27 +67,17 @@ func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string,
 		}
 	}
 
-	//add admins
-	if v := ea.Difference(la); v.Len() > 0 {
+	// add new
+	if v := expect.Difference(lm); v.Len() > 0 {
 		for k := range v {
-			if !expect.Has(k) {
-				continue
-			}
+			l := log.WithField("add member", fmt.Sprintf("%s:%s", repo, k))
+			l.Info("start")
 
-			if expect.Has(k) {
-
-				l := log.WithField("update developer to admin", fmt.Sprintf("%s:%s", repo, k))
-				l.Info("start")
-
-				if err := bot.cli.RemoveRepoMember(org, repo, k); err != nil {
-					l.Errorf("remove developer %s from %s/%s failed, err: %v", k, org, repo, err)
-				}
-
-				if err := bot.addRepoAdmin(org, repo, k); err != nil {
-					l.Errorf("add admin %s to %s/%s failed, err: %v", k, org, repo, err)
-				} else {
-					a = append(a, k)
-				}
+			// how about adding a member but he/she exits? see the comment of 'addRepoMember'
+			if err := bot.addRepoMember(org, repo, k); err != nil {
+				l.Error(err)
+			} else {
+				r = append(r, k)
 			}
 		}
 	}
@@ -139,6 +114,31 @@ func (bot *robot) handleMember(expectRepo expectRepoInfo, localMembers []string,
 
 				if err := bot.addRepoMember(org, repo, k); err != nil {
 					l.Errorf("add developer %s to %s/%s failed, err: %v", k, org, repo, err)
+				}
+			}
+		}
+	}
+
+	//add admins
+	if v := ea.Difference(la); v.Len() > 0 {
+		for k := range v {
+			if !expect.Has(k) {
+				continue
+			}
+
+			if expect.Has(k) {
+
+				l := log.WithField("update developer to admin", fmt.Sprintf("%s:%s", repo, k))
+				l.Info("start")
+
+				if err := bot.cli.RemoveRepoMember(org, repo, k); err != nil {
+					l.Errorf("remove developer %s from %s/%s failed, err: %v", k, org, repo, err)
+				}
+
+				if err := bot.addRepoAdmin(org, repo, k); err != nil {
+					l.Errorf("add admin %s to %s/%s failed, err: %v", k, org, repo, err)
+				} else {
+					a = append(a, k)
 				}
 			}
 		}

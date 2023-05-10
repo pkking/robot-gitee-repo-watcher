@@ -69,7 +69,6 @@ func (bot *robot) patchFactoryYaml(repo string, log *logrus.Entry) {
 	for _, r := range allPackages {
 		for i, pck := range Packages {
 			if pck.Name == r.Name {
-				fmt.Println("already exists ", r.Name)
 				Packages = append(Packages[:i], Packages[i+1:]...)
 				continue
 			}

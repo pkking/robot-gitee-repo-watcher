@@ -45,6 +45,8 @@ func (bot *robot) createRepo(
 		return models.RepoState{}
 	}
 
+	OneCheckTotalRepos += 1
+
 	defer func() {
 		hook(repoName, log)
 	}()
@@ -158,6 +160,10 @@ func (bot *robot) renameRepo(
 	err = bot.cli.UpdateProjectLabels(org, newRepo, []string{sigLabel})
 	if err != nil {
 		log.Infof("update label failed: %v", err)
+	}
+
+	if err != nil {
+		OneCheckTotalRepos += 1
 	}
 
 	defer func(b bool) {

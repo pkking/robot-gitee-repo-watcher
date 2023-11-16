@@ -78,6 +78,7 @@ type Repository struct {
 	Description       string       `json:"description,omitempty"`
 	Commentable       bool         `json:"commentable,omitempty"`
 	ProtectedBranches []string     `json:"protected_branches,omitempty"`
+	RepoUrl           string       `json:"repository_url"`
 	Branches          []RepoBranch `json:"branches,omitempty"`
 
 	RepoMember

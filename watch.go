@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -96,14 +97,20 @@ func (bot *robot) checkOnce(ctx context.Context, org string, local *localState, 
 			copy(cpa, admins)
 		}
 
+		e := expectRepoInfo{
+			org:             org,
+			expectOwners:    cpo,
+			expectAdmins:    cpa,
+			expectRepoState: repo,
+		}
+
+		if !CanProcess(e) {
+			return
+		}
+
 		err := bot.execTask(
 			local.getOrNewRepo(repo.Name),
-			expectRepoInfo{
-				org:             org,
-				expectOwners:    cpo,
-				expectAdmins:    cpa,
-				expectRepoState: repo,
-			},
+			e,
 			sigLabel,
 			log,
 		)
@@ -119,6 +126,23 @@ func (bot *robot) checkOnce(ctx context.Context, org string, local *localState, 
 	expect.log.Info("new check")
 
 	expect.check(org, isStopped, local.clear, f)
+}
+
+// check if the repo should be handle by gitee robot
+func CanProcess(e expectRepoInfo) bool {
+	// omit repository_url means the repo was hosted on gitee
+	if e.expectRepoState.RepoUrl == "" {
+		logrus.Infof("%s/%s repo config with no repository_url, default to gitee, will process it", e.org, e.expectRepoState.Name)
+		return true
+	}
+	// repository_url must contains gitee.com/<org>/<name>, it can be created
+	if strings.Contains(e.expectRepoState.RepoUrl, "gitee.com/"+e.org+"/"+e.expectRepoState.Name) {
+		logrus.Infof("%s/%s with repository_url match gitee hostname, will process it", e.org, e.expectRepoState.Name)
+		return true
+	}
+
+	logrus.Infof("%s will not be processed on gitee", e.expectRepoState.RepoUrl)
+	return false
 }
 
 func (bot *robot) execTask(localRepo *models.Repo, expectRepo expectRepoInfo, sigLabel string, log *logrus.Entry) error {

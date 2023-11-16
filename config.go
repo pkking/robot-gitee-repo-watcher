@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/huaweicloud/golangsdk"
 	"path"
+
+	"github.com/huaweicloud/golangsdk"
 )
 
 type configuration struct {

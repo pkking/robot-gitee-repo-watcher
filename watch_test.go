@@ -1,73 +1,32 @@
 package main
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/opensourceways/robot-gitee-repo-watcher/community"
 )
 
-func TestCanCreateRepoNoRepoUrl(t *testing.T) {
-	expect := expectRepoInfo{
-		org: "src-openeuler",
-		expectRepoState: &community.Repository{
-			Name: "i3",
-		},
+func TestCanProcess(t *testing.T) {
+	testCase := [][]string{
+		{"", "", "true"},
+		{"xxx", "", "false"},
+		{"xx", "github", "false"},
+		{"", "gitee", "true"},
+		{"", "github", "false"},
 	}
-	if !CanProcess(expect) {
-		t.Fail()
-	}
-}
 
-func TestCanCreateRepoWithRepoUrl(t *testing.T) {
-
-	expect := expectRepoInfo{
-		org: "src-openeuler",
-		expectRepoState: &community.Repository{
-			Name:    "i3",
-			RepoUrl: "https://gitee.com/src-openeuler/i3",
-		},
-	}
-	if !CanProcess(expect) {
-		t.Fail()
-	}
-}
-
-func TestCanCreateRepoWithGithubRepoUrl(t *testing.T) {
-	expect := expectRepoInfo{
-		org: "src-openeuler",
-		expectRepoState: &community.Repository{
-			Name:    "i3",
-			RepoUrl: "https://github.com/src-openeuler/i3",
-		},
-	}
-	if CanProcess(expect) {
-		t.Fail()
-	}
-}
-
-func TestCanCreateRepoWithInvalidRepoUrl(t *testing.T) {
-	expect := expectRepoInfo{
-		org: "src-openeuler",
-		expectRepoState: &community.Repository{
-			Name:    "i3",
-			RepoUrl: "src-openeuler/i3",
-		},
-	}
-	if CanProcess(expect) {
-		t.Fail()
-	}
-}
-
-func TestCanCreateRepoWithValidRepo(t *testing.T) {
-
-	expect := expectRepoInfo{
-		org: "src-openeuler",
-		expectRepoState: &community.Repository{
-			Name:    "i3",
-			RepoUrl: "gitee.com/openeuler/i3",
-		},
-	}
-	if CanProcess(expect) {
-		t.Fail()
+	for k, v := range testCase {
+		expect := expectRepoInfo{
+			org: "src-openeuler",
+			expectRepoState: &community.Repository{
+				Name:     "i3",
+				RepoUrl:  v[0],
+				Platform: v[1],
+			},
+		}
+		if strconv.FormatBool(CanProcess(expect)) != v[2] {
+			t.Errorf("case num %d failed", k)
+		}
 	}
 }
